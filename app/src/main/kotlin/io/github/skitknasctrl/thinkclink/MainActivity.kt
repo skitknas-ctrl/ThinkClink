@@ -1,7 +1,7 @@
 /*
-ThinkClink (spelet heter MYNTKORGEN i appen)
+ThinkClink
 
-Fånga fallande mynt med en korg som styrs med två kantfält. Varje nivå är
+Fånga fallande mynt med en korg som styrs med två osynliga fält (vänster och höger halva). Varje nivå är
 120 sekunder och blir svårare medan den pågår. Mellan nivåerna och när man
 tappar ett liv öppnas en butik: snabbare korg (kräver rätt svar på en
 mattefråga), större korg (för ädelstenar), liv och matte för pengar eller liv.

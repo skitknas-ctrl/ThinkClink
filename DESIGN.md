@@ -12,7 +12,7 @@ Varje fartköp hör ihop med en nivå. Den som köper fart inför varje nivå st
 
 ## 2. Styrning
 
-- Två kantfält, 10 % av bredden i vänster och höger kant, i de mittersta 50 % av höjden. Håll fingret i fältet så rör sig korgen. Fälten påverkar inte fallande föremål.
+- Två osynliga styrfält: vänstra och högra halvan av skärmen, i de mittersta 50 % av höjden. Håll fingret i ett fält så rör sig korgen åt det hållet. Fälten påverkar inte fallande föremål.
 - Ingen tröghet: korgen går med full fart direkt och stannar direkt.
 - Korgen är 25 % mindre än i första versionen: 66 → 50 spelpunkter.
 
@@ -69,7 +69,7 @@ Med standardvärdena får man (om man fångar alla) ungefär 7 stenar till nivå
 - Spelet börjar med 3 liv *(inst.)*. Ett missat mynt kostar ett liv. Missad sedel eller sten kostar inget.
 - Man kan köpa hur många liv som helst under spelet, men aldrig ha mer än 3 extra liv *(inst.)* samtidigt, alltså högst 6 liv.
 - När liven tar slut är spelet över, och rekordet sparas.
-- När man förlorar ett liv mitt i en nivå pausas spelet och hela butiken öppnas (avsnitt 6).
+- När man förlorar ett liv mitt i en nivå pausas spelet och hela butiken öppnas (avsnitt 6). När man går tillbaka till nivån står mynten stilla i 3 sekunder (med nedräkning) medan korgen går att flytta.
 
 ## 6. Butiken
 

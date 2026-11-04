@@ -26,7 +26,7 @@ class Renderer(private val e: Engine) {
     fun zoneAt(x: Float, y: Float): Int {
         val h = e.worldHeight
         if (y < h * 0.25f || y > h * 0.75f) return 0
-        return if (x <= 36f) -1 else if (x >= 324f) 1 else 0
+        return if (x < Engine.W / 2) -1 else 1
     }
 
     fun draw(g: Gfx) {
@@ -34,7 +34,6 @@ class Renderer(private val e: Engine) {
         val h = e.worldHeight
         background(g, h)
         if (e.mode != Mode.MENU) hud(g)
-        if (e.mode == Mode.PLAYING) zones(g, h)
         drops(g)
         scenery(g)
         labels(g)
@@ -45,7 +44,7 @@ class Renderer(private val e: Engine) {
             Mode.SHOP -> shop(g, h)
             Mode.QUESTION -> question(g, h)
             Mode.GAME_OVER -> gameOver(g, h)
-            Mode.PLAYING -> banner(g, h)
+            Mode.PLAYING -> { banner(g, h); freeze(g, h) }
         }
     }
 
@@ -94,19 +93,6 @@ class Renderer(private val e: Engine) {
         g.poly(floatArrayOf(cx - 4f * s, cy - 3f * s, cx, cy - 9f * s, cx + 1f * s, cy - 3f * s), rgb(220, 250, 255))
         val tw = (sin(time * 5f) + 1f) / 2f
         g.line(cx + 6f * s, cy - 10f * s, cx + 6f * s, cy - (10f - 6f * tw) * s - 6f * s, 1.2f, alpha(Col.WHITE, (200 * tw).toInt()))
-    }
-
-    private fun zones(g: Gfx, h: Float) {
-        val top = h * 0.25f
-        val bottom = h * 0.75f
-        for (side in intArrayOf(-1, 1)) {
-            val l = if (side < 0) 0f else 324f
-            val held = if (side < 0) e.heldLeft else e.heldRight
-            g.rect(l, top, l + 36f, bottom, argb(if (held) 90 else 34, 255, 255, 255))
-            val cx = l + 18f
-            val cy = (top + bottom) / 2
-            g.poly(floatArrayOf(cx + side * 10f, cy, cx - side * 8f, cy - 14f, cx - side * 8f, cy + 14f), argb(if (held) 220 else 110, 255, 255, 255))
-        }
     }
 
     private fun drops(g: Gfx) {
@@ -174,7 +160,7 @@ class Renderer(private val e: Engine) {
     private fun controls(g: Gfx, h: Float) {
         val noteText = when {
             e.slowLeft > 0f -> "Slowmotion ${ceil(e.slowLeft).toInt()} s"
-            e.level == 1 && e.levelTime < 8f -> "Håll fingret i kantfälten för att flytta korgen"
+            e.level == 1 && e.levelTime < 8f -> "Håll fingret till vänster eller höger för att flytta korgen"
             else -> e.note
         }
         g.fitText(noteText, 180f, h - 94f, 12f, Col.NOTE, 340f)
@@ -210,6 +196,12 @@ class Renderer(private val e: Engine) {
         return yy
     }
 
+    private fun freeze(g: Gfx, h: Float) {
+        if (e.freezeLeft <= 0f) return
+        g.text("${ceil(e.freezeLeft).toInt()}", 180f, h * 0.42f, 48f, Col.GOLD)
+        g.text("Mynten väntar – flytta korgen", 180f, h * 0.42f + 30f, 14f, Col.WHITE)
+    }
+
     private fun banner(g: Gfx, h: Float) {
         if (e.banner <= 0f) return
         val a = (min(1f, e.banner / 0.6f) * 255).toInt()
@@ -219,7 +211,7 @@ class Renderer(private val e: Engine) {
     private fun menu(g: Gfx, h: Float) {
         g.rect(0f, 0f, Engine.W, e.ground - 70f, argb(200, 7, 13, 29))
         val top = max(40f, h * 0.14f)
-        g.text("MYNTKORGEN", 180f, top, 32f, Col.GOLD)
+        g.text("THINKCLINK", 180f, top, 32f, Col.GOLD)
         g.text("Fånga mynt. Räkna dig till fart.", 180f, top + 30f, 14f, Col.WHITE)
         g.text("Rekord: ${e.high} fångade", 180f, top + 54f, 13f, Col.SOFT)
         var y = top + 90f

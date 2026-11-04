@@ -88,6 +88,8 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         const val SWAY_SPEED = 3.9f
         const val SPECIAL_SLOWDOWN = 3f
         const val POWER_SECONDS = 10f
+        /** Coins stand still this long after returning to the level from the shop. */
+        const val FREEZE_SECONDS = 3f
         const val QUESTIONS_PER_VISIT = 3
         const val LIVES_PER_VISIT = 2
         /** Extra answer time for knowledge questions: one second per this many characters of question text. */
@@ -144,6 +146,8 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     var groundX = 0f
     var groundLeft = 0f
     var slowLeft = 0f
+    /** Seconds left of the pause after returning from the shop: coins stand still, the basket can move. */
+    var freezeLeft = 0f
 
     // Shop
     var midLevelShop = false
@@ -237,7 +241,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         listener.saveProgress(snapshot(false))
         levelTime = 0f; caughtThisLevel = 0; next = 0
         active.clear(); labels.clear()
-        groundLeft = 0f; slowLeft = 0f
+        groundLeft = 0f; slowLeft = 0f; freezeLeft = 0f
         setInput(false, false)
         val bw = basketWidth()
         basketX = basketX.coerceIn(bw / 2, W - bw / 2)
@@ -325,6 +329,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
             basketX = nx
             facing = moveDir
         }
+        if (freezeLeft > 0f) { freezeLeft = max(0f, freezeLeft - dt); return }
         val timeScale = if (slowLeft > 0f) 0.5f else 1f
         slowLeft = max(0f, slowLeft - dt)
         groundLeft = max(0f, groundLeft - dt)
@@ -351,6 +356,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
             lives = max(0, lives - lost)
             listener.sound(Sfx.LIFE)
             if (lives == 0) { gameOver(); return }
+            active.removeAll { it.state == 2 } // the missed coin should not hang in the air during the pause
             openShop(true)
             note = if (lost == 1) "Du tappade ett liv." else "Du tappade $lost liv."
             return
@@ -513,7 +519,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     private fun leaveShop() {
         if (mode != Mode.SHOP) return
         when {
-            midLevelShop -> { mode = Mode.PLAYING; note = "" }
+            midLevelShop -> { mode = Mode.PLAYING; note = ""; freezeLeft = FREEZE_SECONDS }
             gateRemaining() > 0 -> ask(Purpose.GATE, mathDifficulty())
             else -> startLevel()
         }
