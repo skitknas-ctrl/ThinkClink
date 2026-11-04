@@ -175,6 +175,9 @@ Spelet riktar sig till skolelever, så frågorna är inte bara matte. Kunskapsfr
 - Spelet väljer en fråga med svårighet så nära den önskade som möjligt och ställer inte samma fråga två gånger i samma spel. Finns ingen kvar blir det matte.
 - Kunskapsfrågor får en extra sekund svarstid per 20 tecken frågetext, för läsningen.
 - Finns en förklaring i databasen visas den efter svaret.
+- **Bilder:** har frågan en bild (`image_url`) visas den ovanför frågetexten, så stor som skärmen tillåter. Bilden laddas ner till telefonen när frågorna hämtas, och frågan används först när bilden finns där.
+- **Aktuella frågor:** har frågan ett slutdatum (`aktuell_till`) slutar appen använda den efter det datumet, även om den hämtades tidigare.
+- Frågorna hämtas från serverns `questions.php`: allt första gången, sedan bara det som ändrats (`since`).
 - **För att starta nästa nivå** måste man svara rätt på 1 fråga *(inst.)*. Fel svar ger ingen straff, men man får en ny fråga när man försöker igen.
 - Startskärmen visar hur många frågor som finns för vald årskurs och när de senast hämtades.
 

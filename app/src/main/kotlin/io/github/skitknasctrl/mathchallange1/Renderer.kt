@@ -295,24 +295,43 @@ class Renderer(private val e: Engine) {
                 else "Svara rätt för att starta nivån"
         }
         // Math is one big line; knowledge questions are wrapped and get smaller text when long.
-        var textSize = 34f
-        var lines = listOf(q.text)
-        if (q.bankId != null) {
-            textSize = 21f
-            lines = g.wrap(q.text, textSize, 320f)
-            if (lines.size > 4) { textSize = 18f; lines = g.wrap(q.text, textSize, 320f) }
-            lines = lines.take(7)
-        }
-        val lineH = textSize * 1.25f
+        val isBank = q.bankId != null
+        fun linesFor(size: Float) = if (isBank) g.wrap(q.text, size, 320f).take(7) else listOf(q.text)
+        var textSize = if (isBank) 21f else 34f
+        var lines = linesFor(textSize)
+        if (isBank && lines.size > 4) { textSize = 18f; lines = linesFor(textSize) }
         val grid = q.options.size == 6 && q.options.all { g.textWidth(it, 20f) <= 128f }
         val rows = if (grid) 3 else q.options.size
         var step = if (grid) 60f else 50f
-        val total = 76f + lines.size * lineH + 50f + rows * step
+        fun totalOf() = 76f + lines.size * textSize * 1.25f + 50f + rows * step
+        // A question image goes between the subject and the question text, as large as the space allows.
+        // On small screens the buttons and the text shrink first so that the image stays readable.
+        var imgW = 0f
+        var imgH = 0f
+        val size = q.imageUrl?.let { g.imageSize(it) }
+        if (size != null && size[0] > 0f && size[1] > 0f) {
+            val maxH = min(180f, (h - 122f) * 0.32f)
+            fun free() = h - 134f - totalOf() - 10f
+            if (free() < 100f) step = if (grid) 52f else 42f
+            if (free() < 100f && isBank && textSize > 16f) { textSize = 16f; lines = linesFor(textSize) }
+            if (free() < 100f && !grid) step = 38f
+            imgH = min(maxH, free()).coerceAtLeast(0f)
+            imgW = imgH * size[0] / size[1]
+            if (imgW > 320f) { imgW = 320f; imgH = imgW * size[1] / size[0] }
+            if (imgH < 40f) { imgW = 0f; imgH = 0f }
+        }
+        val lineH = textSize * 1.25f
+        val total = totalOf() + if (imgH > 0f) imgH + 10f else 0f
         var y = max(128f, 122f + (h - 122f - total) / 2)
         g.text(title, 180f, y + 22f, 21f, Col.WHITE)
         g.fitText(sub, 180f, y + 46f, 14f, Col.SOFT, 330f)
         g.text(q.subjectName, 180f, y + 68f, 12f, Col.TEAL)
         y += 76f
+        if (imgH > 0f) {
+            g.roundRect(180f - imgW / 2 - 3f, y + 2f, 180f + imgW / 2 + 3f, y + imgH + 8f, 6f, rgb(40, 50, 70))
+            g.image(q.imageUrl!!, 180f - imgW / 2, y + 5f, 180f + imgW / 2, y + imgH + 5f)
+            y += imgH + 10f
+        }
         for (line in lines) { y += lineH; g.fitText(line, 180f, y - lineH * 0.22f, textSize, Col.GOLD, 330f) }
         y += 22f
         g.text(String.format(java.util.Locale.forLanguageTag("sv-SE"), "%.1f sekunder kvar", e.timeLeft), 180f, y, 15f, Col.WHITE)

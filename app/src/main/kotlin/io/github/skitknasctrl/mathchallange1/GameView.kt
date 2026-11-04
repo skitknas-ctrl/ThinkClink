@@ -18,10 +18,11 @@ import kotlin.math.min
 /** Android side of the game: frame loop, touch, saving, sound, network and the settings dialog. */
 class GameView(private val host: Activity) : View(host), GameListener {
     private val prefs = host.getSharedPreferences("mathchallange", 0)
-    private val gfx = AndroidGfx()
     private val sound = Sound(host)
     private val appVersion = readAppVersion()
     private val backend = Backend(host, appVersion)
+    private val images = ImageStore { url -> backend.imageFile(url) }
+    private val gfx = AndroidGfx { url -> images.get(url) }
     private val engine: Engine
     private val renderer: Renderer
     private var scale = 1f
@@ -37,9 +38,15 @@ class GameView(private val host: Activity) : View(host), GameListener {
         sound.enabled = engine.rules.sound
         isFocusable = true
         backend.onChange = { updateInfo() }
-        backend.loadCached { bank -> engine.bank = bank; updateInfo() }
-        backend.sync(true) { bank -> engine.bank = bank }
+        backend.loadCached { bank -> setBank(bank) }
+        backend.sync(true) { bank -> setBank(bank) }
         if (engine.rules.sendStats) backend.flush()
+        updateInfo()
+    }
+
+    private fun setBank(bank: QuestionBank) {
+        engine.bank = bank
+        images.refresh()
         updateInfo()
     }
 
@@ -101,7 +108,7 @@ class GameView(private val host: Activity) : View(host), GameListener {
 
     fun onHostResume() {
         active = true; last = 0L; invalidate()
-        backend.sync(false) { bank -> engine.bank = bank }
+        backend.sync(false) { bank -> setBank(bank) }
         if (engine.rules.sendStats) backend.flush()
     }
 

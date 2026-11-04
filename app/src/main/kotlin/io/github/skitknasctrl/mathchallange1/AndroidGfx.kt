@@ -1,5 +1,6 @@
 package io.github.skitknasctrl.mathchallange1
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -8,10 +9,11 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 
-/** Gfx on top of an Android Canvas. */
-class AndroidGfx : Gfx {
+/** Gfx on top of an Android Canvas. images looks up a downloaded question image by its URL. */
+class AndroidGfx(private val images: (String) -> Bitmap? = { null }) : Gfx {
     lateinit var canvas: Canvas
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val path = Path()
     private val rf = RectF()
     private val bold: Typeface = Typeface.create("sans-serif", Typeface.BOLD)
@@ -66,6 +68,15 @@ class AndroidGfx : Gfx {
     override fun textWidth(s: String, size: Float): Float {
         paint.textSize = size; paint.typeface = bold
         return paint.measureText(s)
+    }
+
+    override fun imageSize(key: String): FloatArray? =
+        images(key)?.let { floatArrayOf(it.width.toFloat(), it.height.toFloat()) }
+
+    override fun image(key: String, l: Float, t: Float, r: Float, b: Float) {
+        val bmp = images(key) ?: return
+        rf.set(l, t, r, b)
+        canvas.drawBitmap(bmp, null, rf, imagePaint)
     }
 
     override fun save() { canvas.save() }

@@ -1,0 +1,126 @@
+{
+  "session": {
+    "uuid": "3f1c2a9e-5b7d-4e21-9c3a-1d2e3f4a5b6c",
+    "app_version": "0.1.0-test.5",
+    "settings": {
+      "startMf": 120,
+      "levelSeconds": 120,
+      "mfInterval": 5,
+      "mfStep": 1,
+      "basketSpeed": 70,
+      "minGapMs": 350,
+      "fallMs": 2500,
+      "fallFasterPct": 5,
+      "specialFromLevel": 3,
+      "billEvery": 200,
+      "billChance": 33,
+      "billValue": 100,
+      "gemEvery": 100,
+      "gemChance": 50,
+      "startLives": 3,
+      "maxExtraLives": 3,
+      "speedPricePct": 60,
+      "answerSeconds": 10,
+      "refundPct": 30,
+      "mathEasyPct": 5,
+      "mathMediumPct": 10,
+      "mathHardPct": 15,
+      "mathStart": 1,
+      "gateQuestions": 1,
+      "grade": 4,
+      "knowledgePct": 50,
+      "sendStats": 1,
+      "sound": 1,
+      "showMf": 1
+    },
+    "world_height": 737,
+    "grade": 4
+  },
+  "level": {
+    "level": 4,
+    "attempt": 1,
+    "outcome": "completed",
+    "speed_level": 4,
+    "size_level": 0,
+    "mf_start_effective": 133.33,
+    "lives_start": 3,
+    "lives_lost": 3,
+    "lives_bought": 2,
+    "speed_bought": 0,
+    "size_bought": 0,
+    "coins_planned": 131,
+    "coins_caught": 98,
+    "bills_planned": 0,
+    "bills_caught": 0,
+    "gems_planned": 0,
+    "gems_caught": 0,
+    "ground_used": 0,
+    "slow_used": 0,
+    "balance_end": 122,
+    "play_seconds": 120.01
+  },
+  "misses": [
+    {
+      "level_time": 3.07,
+      "mf_planned": 120.0,
+      "mf_effective": 133.33,
+      "distance": 45,
+      "miss_by": 27.32,
+      "basket_width": 50.0,
+      "slow_active": 0
+    },
+    {
+      "level_time": 3.43,
+      "mf_planned": 120.0,
+      "mf_effective": 133.33,
+      "distance": 30,
+      "miss_by": 57.14,
+      "basket_width": 50.0,
+      "slow_active": 0
+    },
+    {
+      "level_time": 5.27,
+      "mf_planned": 120.0,
+      "mf_effective": 133.33,
+      "distance": 147,
+      "miss_by": 11.24,
+      "basket_width": 50.0,
+      "slow_active": 0
+    }
+  ],
+  "answers": [
+    {
+      "purpose": "life",
+      "question_id": null,
+      "subject_code": "matte",
+      "difficulty": 2,
+      "question_text": "8 × 3 = ?",
+      "correct": 0,
+      "timed_out": 0,
+      "answer_ms": 4300,
+      "time_limit_ms": 10000
+    },
+    {
+      "purpose": "life",
+      "question_id": null,
+      "subject_code": "matte",
+      "difficulty": 2,
+      "question_text": "19 + 13 = ?",
+      "correct": 1,
+      "timed_out": 0,
+      "answer_ms": 3100,
+      "time_limit_ms": 10000
+    },
+    {
+      "purpose": "gate",
+      "question_id": 2,
+      "subject_code": "engelska",
+      "difficulty": 1,
+      "question_text": null,
+      "correct": 1,
+      "timed_out": 0,
+      "answer_ms": 2600,
+      "time_limit_ms": 11000
+    }
+  ]
+}

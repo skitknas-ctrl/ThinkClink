@@ -37,8 +37,8 @@ Testbyggen signeras med nyckeln i `app/debug.keystore` (endast för test) så at
 - `Renderer.kt`, `Draggers.kt` – all grafik, ritad med vektorgrafik via det lilla rit-gränssnittet i `Gfx.kt`
 - `GameView.kt`, `MainActivity.kt`, `AndroidGfx.kt`, `Sound.kt` – Android-delen
 - `Rules.kt` – testinställningarna, `MathQuiz.kt` – mattefrågorna, `QuestionBank.kt` – kunskapsfrågorna, `Synth.kt` – ljudeffekterna
-- `Backend.kt` – hämtar frågor och skickar statistik till servern, `Json.kt` – statistikens JSON
-- `server/schema.sql` – databasen, `server/api/` – API:t i PHP
+- `QuestionSync.kt` – håller frågorna och deras bilder i synk med servern, `Backend.kt` – nätverket och statistikkön, `ImageStore.kt` – bilderna i minnet, `Json.kt` – statistikens JSON
+- `server/schema.sql` – databasen, `server/api/` – statistik-API:t i PHP, `server/STATISTIK-API.md` – vad appen skickar
 - `DESIGN.md` – reglerna
 - `.github/workflows/build.yml` – bygge och testutgåvor
 

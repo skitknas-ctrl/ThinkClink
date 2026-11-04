@@ -18,6 +18,7 @@ class Question(
     val difficulty: Int,
     val bankId: Int? = null,
     val explanation: String? = null,
+    val imageUrl: String? = null,
 ) {
     val answerText: String get() = options[correct]
 }

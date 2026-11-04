@@ -21,6 +21,10 @@ interface Gfx {
     /** Bold text with its baseline at y. align: -1 left, 0 centre, 1 right. */
     fun text(s: String, x: Float, y: Float, size: Float, color: Int, align: Int = 0)
     fun textWidth(s: String, size: Float): Float
+    /** Width and height of a downloaded image (key = its URL), or null if it is not available. */
+    fun imageSize(key: String): FloatArray? = null
+    /** Draws a downloaded image scaled into the rectangle. */
+    fun image(key: String, l: Float, t: Float, r: Float, b: Float) {}
     fun save()
     fun restore()
     fun translate(dx: Float, dy: Float)
