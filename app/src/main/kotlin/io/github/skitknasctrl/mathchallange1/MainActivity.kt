@@ -3,15 +3,23 @@ MathChallange-1 (spelet heter MYNTKORGEN i appen) – första spelbara prototype
 Ursprunglig kod skriven av ChatGPT; projektstruktur och bygge av Claude.
 
 REGLER
-Dra korgen åt sidan för att fånga mynt. Varje fångat mynt ger ett mynt i
-saldot och en poäng i Fångat. Missgränsen avslutar omgången när den nås.
-Tryck Köp korg när saldot räcker. Köpesumman dras direkt och mynten pausas.
-Välj ett av sex svar. Rätt svar ger större korg. Fel svar eller slut på tiden
-förbrukar insatsen. Rätt svar ger även återbetalning enligt:
+Korgen flyttas med två aktiva fält i vänster och höger kant: 10 % av
+skärmbredden vardera, i de mittersta 50 % av skärmens höjd. Håll fingret i
+fältet så rör sig korgen åt det hållet. Fälten påverkar inte fallande mynt.
+Korgen är långsam i början. Varje fångat mynt ger ett mynt i saldot och en
+poäng i Fångat. Missgränsen avslutar omgången när den nås.
+Det finns två köp: Storlek (större korg) och Fart (snabbare korg), tio nivåer
+vardera. Tryck på knappen när saldot räcker. Köpesumman dras direkt och
+mynten pausas. Välj ett av sex svar på huvudräkningsfrågan. Rätt svar ger
+uppgraderingen. Fel svar eller slut på tiden förbrukar insatsen. Rätt svar ger
+även återbetalning enligt:
 insats × maximal återbetalningsprocent × andel återstående svarstid.
-Nästa korg kostar grundpriset gånger nästa uppgraderingsnummer.
-Det finns tio uppgraderingar. Mattesvårigheten ökar ett steg varannan
-uppgradering, upp till nivå fem. Division har alltid heltalssvar.
+Nästa köp av samma sort kostar grundpriset gånger nästa nivånummer.
+Korgens fart = startfart × (1 + 0,5 × fartnivå).
+Mattesvårigheten ökar ett steg för var tredje köp (storlek + fart), upp till
+nivå fem. Division har alltid heltalssvar.
+Svårighetsgraden stegras: för varje hel spelminut faller mynten snabbare och
+kommer tätare (myntfarten mest). Utan köpt fart hinner man inte med.
 
 TESTINSTÄLLNINGAR
 Finns på startskärmen och under Paus. Alla inställningar och rekordet sparas.
@@ -19,8 +27,9 @@ Spara inställningar startar om omgången. Avbryt behåller omgången.
 Hastighet anges i spelpunkter/sekund; spelplanens bredd är 360 spelpunkter.
 Myntflöde anger antal nya mynt per tio sekunder. Max mynt samtidigt är
 ett separat tak; nya mynt hoppas över om taket nåtts.
-Fart och flöde ökar varje hel aktiv spelminut, högst till tre gånger
-startvärdena. Sätt ökning till noll för fasta värden under provspelning.
+Myntfart ökar varje hel aktiv spelminut med inställd procent, högst till fyra
+gånger startvärdet; flödet ökar 60 % så snabbt, högst tre gånger. Sätt ökning
+till noll för fasta värden under provspelning.
 Mattesvårighet: 1 plus/minus upp till 10; 2 plus/minus upp till 20 och
 gånger; 3 plus/minus upp till 50 och gånger; 4–5 större tal och division.
 
@@ -76,7 +85,8 @@ class MainActivity : Activity() {
 private data class Rules(
     var misses: Int = 10, var speed: Int = 180, var flow: Int = 12,
     var math: Int = 1, var seconds: Int = 10, var maxCoins: Int = 30,
-    var progression: Int = 15, var price: Int = 20, var discount: Int = 30
+    var progression: Int = 20, var price: Int = 20, var discount: Int = 30,
+    var basketSpeed: Int = 90
 )
 private data class Coin(var x: Float, var y: Float)
 private data class Question(val text: String, val answer: Int, val options: List<Int>)
@@ -95,7 +105,12 @@ private class CoinGame(val host: Activity) : View(host) {
     private var balance = 0
     private var caught = 0
     private var missed = 0
-    private var level = 0
+    private var sizeLevel = 0
+    private var speedLevel = 0
+    private var pending = 0 // vilket köp frågan gäller: 0 = större korg, 1 = snabbare korg
+    private var heldLeft = false
+    private var heldRight = false
+    private var moveDir = 0
     private var basket = 180f
     private var started = false
     private var paused = false
@@ -106,32 +121,42 @@ private class CoinGame(val host: Activity) : View(host) {
     private var purchaseSeconds = 0f
     private var stake = 0
     private var high = prefs.getInt("high", 0)
-    private var note = "Dra korgen med fingret"
+    private val startNote = "Håll i kanterna för att flytta korgen"
+    private var note = startNote
     var active = true
 
     init {
         rules = Rules(prefs.getInt("misses", 10), prefs.getInt("speed", 180),
             prefs.getInt("flow", 12), prefs.getInt("math", 1), prefs.getInt("seconds", 10),
-            prefs.getInt("maxCoins", 30), prefs.getInt("progression", 15),
-            prefs.getInt("price", 20), prefs.getInt("discount", 30))
+            prefs.getInt("maxCoins", 30), prefs.getInt("progression", 20),
+            prefs.getInt("price", 20), prefs.getInt("discount", 30),
+            prefs.getInt("basketSpeed", 90))
         isFocusable = true
     }
     fun resumeClock() { last = 0L; invalidate() }
     private fun reset() {
         coins.clear(); elapsed = 0f; spawn = 0f; balance = 0; caught = 0
-        missed = 0; level = 0; basket = 180f; started = true; paused = false
-        over = false; question = null; note = "Dra korgen med fingret"; last = 0L
+        missed = 0; sizeLevel = 0; speedLevel = 0; basket = 180f; started = true; paused = false
+        over = false; question = null; note = startNote; last = 0L
         invalidate()
     }
-    private fun basketWidth() = min(300f, 66f + level * 23f)
-    private fun price() = rules.price * (level + 1)
+    private fun basketWidth() = min(300f, 66f + sizeLevel * 23f)
+    private fun basketSpeed() = rules.basketSpeed * (1f + 0.5f * speedLevel)
+    private fun levelOf(type: Int) = if (type == 0) sizeLevel else speedLevel
+    private fun price(type: Int) = rules.price * (levelOf(type) + 1)
+    private fun maxed(type: Int) = levelOf(type) >= 10
+    // Aktiva fält: 10 % av bredden på var sida, i de mittersta 50 % av höjden.
+    private fun zoneDir(x: Float, y: Float): Int {
+        if (y < worldHeight * 0.25f || y > worldHeight * 0.75f) return 0
+        return if (x <= 36f) -1 else if (x >= 324f) 1 else 0
+    }
     private fun finish() {
         over = true
         if (caught > high) { high = caught; prefs.edit().putInt("high", high).apply() }
         note = "Spelet är slut"
     }
     private fun generateQuestion(): Question {
-        val difficulty = min(5, rules.math + level / 2)
+        val difficulty = min(5, rules.math + (sizeLevel + speedLevel) / 3)
         val limit = when (difficulty) { 1 -> 10; 2 -> 20; 3 -> 50; 4 -> 100; else -> 200 }
         val a = Random.nextInt(1, limit + 1)
         val b = Random.nextInt(1, limit + 1)
@@ -150,9 +175,10 @@ private class CoinGame(val host: Activity) : View(host) {
         }
         return Question(pair.first, pair.second, choices.shuffled())
     }
-    private fun buy() {
-        if (balance < price() || level >= 10) return
-        stake = price(); balance -= stake
+    private fun buy(type: Int) {
+        if (maxed(type) || balance < price(type)) return
+        pending = type
+        stake = price(type); balance -= stake
         question = generateQuestion()
         timeLeft = rules.seconds.toFloat(); purchaseSeconds = timeLeft
     }
@@ -160,9 +186,15 @@ private class CoinGame(val host: Activity) : View(host) {
         val q = question ?: return
         if (value == q.answer) {
             val refund = (stake * rules.discount / 100f * (timeLeft / purchaseSeconds)).roundToInt()
-            balance += refund; level++
-            basket = basket.coerceIn(basketWidth()/2, 360f-basketWidth()/2)
-            note = "Större korg! Återbetalt: $refund mynt"
+            balance += refund
+            if (pending == 0) {
+                sizeLevel++
+                basket = basket.coerceIn(basketWidth()/2, 360f-basketWidth()/2)
+                note = "Större korg! Återbetalt: $refund mynt"
+            } else {
+                speedLevel++
+                note = "Snabbare korg! Återbetalt: $refund mynt"
+            }
         } else note = if (value == null) "Tiden slut! Du förlorade $stake mynt" else "Fel! Rätt svar: ${q.answer}. Förlorat: $stake"
         question = null
     }
@@ -174,10 +206,16 @@ private class CoinGame(val host: Activity) : View(host) {
             return
         }
         elapsed += dt
-        // En ökning per hel spelminut, med ett tak för fortsatt spelbarhet.
-        val factor = min(3f, 1f + floor(elapsed / 60f) * rules.progression / 100f)
+        if (moveDir != 0) {
+            basket = (basket + moveDir * basketSpeed() * dt).coerceIn(basketWidth()/2, 360f-basketWidth()/2)
+        }
+        // En ökning per hel spelminut, med tak för fortsatt spelbarhet.
+        // Myntfarten ökar mest; flödet ökar 60 % så snabbt.
+        val steps = floor(elapsed / 60f) * rules.progression / 100f
+        val factor = min(4f, 1f + steps)
+        val flowFactor = min(3f, 1f + steps * 0.6f)
         spawn += dt
-        val interval = 10f / (rules.flow * factor)
+        val interval = 10f / (rules.flow * flowFactor)
         while (spawn >= interval) {
             spawn -= interval
             if (coins.size < rules.maxCoins) coins.add(Coin(Random.nextFloat()*332f+14f, 135f))
@@ -205,11 +243,31 @@ private class CoinGame(val host: Activity) : View(host) {
         paint.shader = null; paint.style = Paint.Style.FILL; paint.color = color
         c.drawRoundRect(r, 14f, 14f, paint)
     }
-    private fun button(c: Canvas, label: String, r: RectF, enabled: Boolean = true, action: () -> Unit) {
+    private fun button(c: Canvas, label: String, r: RectF, enabled: Boolean = true, size: Float = 16f, action: () -> Unit) {
         panel(c, r, if (enabled) Color.rgb(35,112,133) else Color.rgb(45,53,67))
-        text(c, label, r.centerX(), r.centerY()+6f, 16f,
+        text(c, label, r.centerX(), r.centerY()+size*0.375f, size,
             if (enabled) Color.WHITE else Color.LTGRAY)
         if (enabled) buttons.add(r to action)
+    }
+    // De två aktiva kantfälten. Ritas under mynten; mynt påverkas aldrig av fälten.
+    private fun drawZones(c: Canvas) {
+        val top = worldHeight * 0.25f
+        val bottom = worldHeight * 0.75f
+        for (side in intArrayOf(-1, 1)) {
+            val r = if (side < 0) RectF(0f, top, 36f, bottom) else RectF(324f, top, 360f, bottom)
+            val held = if (side < 0) heldLeft else heldRight
+            paint.shader = null; paint.style = Paint.Style.FILL
+            paint.color = Color.argb(if (held) 90 else 38, 255, 255, 255)
+            c.drawRect(r, paint)
+            val cx = r.centerX(); val cy = r.centerY()
+            val arrow = Path()
+            arrow.moveTo(cx + side * 10f, cy)
+            arrow.lineTo(cx - side * 8f, cy - 14f)
+            arrow.lineTo(cx - side * 8f, cy + 14f)
+            arrow.close()
+            paint.color = Color.argb(if (held) 220 else 120, 255, 255, 255)
+            c.drawPath(arrow, paint)
+        }
     }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -228,8 +286,9 @@ private class CoinGame(val host: Activity) : View(host) {
         for (i in 0..35) c.drawCircle((i*83%360).toFloat(), (145+i*61%(max(1, worldHeight.toInt()-300))).toFloat(), 1.5f, paint)
         text(c,"MYNTKORGEN",180f,32f,24f,Color.rgb(255,209,93))
         text(c,"Mynt: $balance     Fångat: $caught",180f,62f)
-        text(c,"Missat: $missed / ${rules.misses}     Korg: ${level+1}",180f,87f,15f)
+        text(c,"Missat: $missed / ${rules.misses}   Storlek: ${sizeLevel+1}   Fart: ${speedLevel+1}",180f,87f,13f)
         text(c,"Rekord: $high",180f,110f,12f,Color.LTGRAY)
+        if (started && !over) drawZones(c)
         for (coin in coins) {
             paint.color = Color.rgb(239,166,38); c.drawCircle(coin.x,coin.y,11f,paint)
             paint.color = Color.rgb(255,220,105); c.drawCircle(coin.x-1f,coin.y-1f,8f,paint)
@@ -240,8 +299,10 @@ private class CoinGame(val host: Activity) : View(host) {
         paint.color = Color.rgb(231,171,90)
         c.drawRect(basket-bw/2-3,rim,basket+bw/2+3,rim+6f,paint)
         text(c,note,180f,worldHeight-94f,11f,Color.rgb(255,219,137))
-        button(c,if(level>=10) "Maximal korg" else "Köp korg · ${price()}",RectF(12f,worldHeight-78f,235f,worldHeight-32f),started && !over && !paused && question==null && balance>=price() && level<10) { buy() }
-        button(c,"Paus",RectF(243f,worldHeight-78f,348f,worldHeight-32f),started && !over && question==null) { paused=true }
+        val playing = started && !over && !paused && question == null
+        button(c,if(maxed(0)) "Storlek max" else "Storlek · ${price(0)}",RectF(8f,worldHeight-78f,120f,worldHeight-32f),playing && !maxed(0) && balance>=price(0),14f) { buy(0) }
+        button(c,if(maxed(1)) "Fart max" else "Fart · ${price(1)}",RectF(124f,worldHeight-78f,236f,worldHeight-32f),playing && !maxed(1) && balance>=price(1),14f) { buy(1) }
+        button(c,"Paus",RectF(240f,worldHeight-78f,352f,worldHeight-32f),started && !over && question==null) { paused=true }
         if (!started || over || paused) {
             paint.color = Color.argb(220,7,13,29); c.drawRect(0f,122f,360f,worldHeight-90f,paint)
             val middle = (worldHeight+60f)/2
@@ -255,7 +316,7 @@ private class CoinGame(val host: Activity) : View(host) {
             buttons.clear()
             paint.color = Color.argb(245,10,18,39); c.drawRect(0f,122f,360f,worldHeight,paint)
             val top = max(130f, (worldHeight-340f)/2)
-            text(c,"KÖP STÖRRE KORG",180f,top+25f,21f)
+            text(c,if(pending==0) "KÖP STÖRRE KORG" else "KÖP SNABBARE KORG",180f,top+25f,21f)
             text(c,"Insats: $stake mynt",180f,top+53f,15f)
             text(c,q.text+" = ?",180f,top+103f,34f,Color.rgb(255,209,93))
             text(c,String.format(java.util.Locale.forLanguageTag("sv-SE"),"%.1f sekunder kvar",timeLeft),180f,top+139f,18f)
@@ -270,14 +331,28 @@ private class CoinGame(val host: Activity) : View(host) {
         if (active) postInvalidateOnAnimation()
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val x = event.x / scale; val y = event.y / scale
-        if (event.actionMasked == MotionEvent.ACTION_UP) {
+        val action = event.actionMasked
+        val lifting = action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP
+        val ended = if (lifting) event.actionIndex else -1
+        if (lifting) {
+            // Knapptryck registreras när fingret lyfts, även om ett annat finger håller i ett kantfält.
             performClick()
+            val x = event.getX(ended) / scale; val y = event.getY(ended) / scale
             buttons.firstOrNull { it.first.contains(x,y) }?.second?.invoke()
         }
-        if ((event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_MOVE) && started && !over && !paused && question==null && y>125f && y<worldHeight-85f) {
-            basket=x.coerceIn(basketWidth()/2,360f-basketWidth()/2)
+        // Korgen styrs bara av fingrar som ligger i kantfälten; resten av skärmen gör ingenting.
+        var left = false; var right = false
+        if (action != MotionEvent.ACTION_CANCEL) {
+            for (i in 0 until event.pointerCount) {
+                if (i == ended) continue
+                when (zoneDir(event.getX(i) / scale, event.getY(i) / scale)) {
+                    -1 -> left = true
+                    1 -> right = true
+                }
+            }
         }
+        heldLeft = left; heldRight = right
+        moveDir = (if (right) 1 else 0) - (if (left) 1 else 0)
         return true
     }
     override fun performClick(): Boolean { super.performClick(); return true }
@@ -300,6 +375,7 @@ private class CoinGame(val host: Activity) : View(host) {
         field("progression","Ökning av fart/flöde per minut, % (0–50)",rules.progression)
         field("price","Pris för första uppgraderingen (1–500)",rules.price)
         field("discount","Max återbetalning vid snabbt rätt svar, % (0–100)",rules.discount)
+        field("basketSpeed","Korgens startfart, spelpunkter/sekund (20–400)",rules.basketSpeed)
         val scroll=ScrollView(host).apply { addView(content) }
         val dialog=AlertDialog.Builder(host).setTitle("Testinställningar").setView(scroll)
             .setMessage("Spara startar en ny omgång. Inställningarna sparas mellan appstarter.")
@@ -307,13 +383,13 @@ private class CoinGame(val host: Activity) : View(host) {
         dialog.setOnDismissListener { settingsOpen=false; last=0L; invalidate() }
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val bounds=listOf(1..999,40..800,1..100,1..100,1..5,2..60,0..50,1..500,0..100)
+                val bounds=listOf(1..999,40..800,1..100,1..100,1..5,2..60,0..50,1..500,0..100,20..400)
                 val values=fields.values.map { it.text.toString().toIntOrNull() }
                 var valid=true
                 fields.values.forEachIndexed { i, input -> if(values[i]==null || values[i]!! !in bounds[i]) { input.error="Ange ${bounds[i].first}–${bounds[i].last}"; valid=false } }
                 if(valid) {
                     val v=values.map { it!! }
-                    rules=Rules(v[0],v[1],v[2],v[4],v[5],v[3],v[6],v[7],v[8])
+                    rules=Rules(v[0],v[1],v[2],v[4],v[5],v[3],v[6],v[7],v[8],v[9])
                     val edit=prefs.edit(); fields.keys.forEachIndexed { i,key -> edit.putInt(key,v[i]) }; edit.apply()
                     reset(); dialog.dismiss()
                 }

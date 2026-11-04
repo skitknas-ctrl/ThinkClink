@@ -4,12 +4,13 @@ Fånga mynt med en korg, köp större korgar genom att lösa huvudräkning. Spel
 
 ## Spelregler
 
-- Dra korgen åt sidan för att fånga fallande mynt. Varje fångat mynt ger ett mynt i saldot och en poäng.
+- Korgen flyttas med två aktiva fält i vänster och höger kant (10 % av bredden vardera, i mittersta 50 % av höjden). Håll fingret i fältet så rör sig korgen. Fälten påverkar inte fallande mynt.
+- Korgen är långsam i början. Varje fångat mynt ger ett mynt i saldot och en poäng.
 - Missar du för många mynt är omgången slut. Rekordet sparas.
-- Tryck **Köp korg** när saldot räcker. Priset dras direkt och du får en räkneuppgift med sex svarsalternativ.
-- Rätt svar ger större korg och en återbetalning som är större ju snabbare du svarar. Fel svar eller slut på tiden förbrukar insatsen.
-- Det finns tio uppgraderingar. Mattesvårigheten ökar ett steg varannan uppgradering.
-- Fart och myntflöde ökar för varje hel spelminut (högst tre gånger startvärdena).
+- Två köp: **Storlek** (större korg) och **Fart** (snabbare korg), tio nivåer vardera. Priset dras direkt och du får en räkneuppgift med sex svarsalternativ.
+- Rätt svar ger uppgraderingen och en återbetalning som är större ju snabbare du svarar. Fel svar eller slut på tiden förbrukar insatsen.
+- Mattesvårigheten ökar ett steg för var tredje köp.
+- Svårigheten stegras för varje hel spelminut: mynten faller snabbare (högst fyra gånger startfarten) och kommer tätare (högst tre gånger). Utan köpt fart hinner man inte med.
 
 Alla värden (antal tillåtna missar, fallhastighet, myntflöde, svarstid, pris med mera) kan ändras under **Testinställningar** på startskärmen och under Paus.
 
