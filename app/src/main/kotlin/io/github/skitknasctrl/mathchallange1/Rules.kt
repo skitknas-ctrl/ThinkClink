@@ -28,6 +28,10 @@ object SettingsSpec {
         Setting("mathMediumPct", "Mattebelöning medel, % av nivåns mynt", 10, 0, 200),
         Setting("mathHardPct", "Mattebelöning svår, % av nivåns mynt", 15, 0, 200),
         Setting("mathStart", "Mattesvårighet, startnivå (1–5)", 1, 1, 5),
+        Setting("gateQuestions", "Rätta svar som krävs för att starta nästa nivå", 1, 0, 5),
+        Setting("grade", "Årskurs för kunskapsfrågor (1–9, gymnasiet 10–12)", 4, 1, 12),
+        Setting("knowledgePct", "Andel kunskapsfrågor i stället för matte, %", 50, 0, 100),
+        Setting("sendStats", "Skicka anonym statistik (1 = ja, 0 = nej)", 1, 0, 1),
         Setting("sound", "Ljud (1 = på, 0 = av)", 1, 0, 1),
         Setting("showMf", "Visa MF under spel (1 = ja, 0 = nej)", 1, 0, 1),
     )
@@ -60,8 +64,14 @@ class Rules(values: Map<String, Int> = emptyMap()) {
     val answerSeconds get() = get("answerSeconds").toFloat()
     val refundPct get() = get("refundPct")
     val mathStart get() = get("mathStart")
+    val gateQuestions get() = get("gateQuestions")
+    val grade get() = get("grade")
+    val knowledgePct get() = get("knowledgePct")
+    val sendStats get() = get("sendStats") == 1
     val sound get() = get("sound") == 1
     val showMf get() = get("showMf") == 1
+
+    fun asMap(): Map<String, Int> = v
 
     /** Reward percentage for math-for-money: 0 easy, 1 medium, 2 hard. */
     fun mathPct(choice: Int) = when (choice) { 0 -> get("mathEasyPct"); 1 -> get("mathMediumPct"); else -> get("mathHardPct") }

@@ -1,5 +1,6 @@
 package io.github.skitknasctrl.mathchallange1
 
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -13,12 +14,15 @@ import kotlin.random.Random
 enum class Mode { MENU, PLAYING, PAUSED, SHOP, QUESTION, GAME_OVER }
 enum class Kind { COIN, BILL, GEM }
 enum class Sfx { COIN, BILL, GEM, LIFE, BUY, WRONG, LEVEL }
-enum class Purpose { SPEED, MONEY, LIFE }
+enum class Purpose { SPEED, MONEY, LIFE, GATE }
 
-/** A falling object. Times are level time in seconds; the object lands on the basket rim at release + fall. */
+/**
+ * A falling object. Times are level time in seconds; the object lands on the basket rim at release + fall.
+ * mf and dist are what the coin was planned with (for the statistics).
+ */
 class Drop(
     val kind: Kind, val x0: Float, val release: Float, val fall: Float,
-    val sway: Float = 0f, val phase: Float = 0f,
+    val sway: Float = 0f, val phase: Float = 0f, val mf: Float = 0f, val dist: Float = 0f,
 ) {
     val land: Float get() = release + fall
     /** 0 falling, 1 caught, 2 missed. */
@@ -33,6 +37,40 @@ interface GameListener {
     /** Persist the game so it can be continued; null clears the saved game. */
     fun saveProgress(state: Map<String, Int>?)
     fun newRecord(high: Int)
+    /** One finished level as JSON for the statistics API (server/api/stats.php). */
+    fun statsReady(json: String)
+}
+
+/** Statistics for one played level, including the shop visit after it. Sent when the next level starts. */
+class LevelRecord(
+    val level: Int, val attempt: Int, val speedLevel: Int, val sizeLevel: Int, val mfStart: Float,
+    val livesStart: Int, val coinsPlanned: Int, val billsPlanned: Int, val gemsPlanned: Int,
+) {
+    var outcome = "abandoned"
+    var livesLost = 0
+    var livesBought = 0
+    var speedBought = 0
+    var sizeBought = 0
+    var coinsCaught = 0
+    var billsCaught = 0
+    var gemsCaught = 0
+    var groundUsed = 0
+    var slowUsed = 0
+    var balanceEnd = -1
+    var playSeconds = 0f
+    val misses = ArrayList<Map<String, Any?>>()
+    val answers = ArrayList<Map<String, Any?>>()
+
+    fun toMap(balance: Int): Map<String, Any?> = mapOf(
+        "level" to level, "attempt" to attempt.coerceIn(1, 255), "outcome" to outcome,
+        "speed_level" to speedLevel, "size_level" to sizeLevel, "mf_start_effective" to mfStart,
+        "lives_start" to livesStart, "lives_lost" to livesLost.coerceAtMost(255), "lives_bought" to livesBought.coerceAtMost(255),
+        "speed_bought" to speedBought, "size_bought" to sizeBought,
+        "coins_planned" to coinsPlanned, "coins_caught" to coinsCaught,
+        "bills_planned" to billsPlanned, "bills_caught" to billsCaught, "gems_planned" to gemsPlanned, "gems_caught" to gemsCaught,
+        "ground_used" to groundUsed.coerceAtMost(255), "slow_used" to slowUsed.coerceAtMost(255),
+        "balance_end" to max(0, if (balanceEnd >= 0) balanceEnd else balance), "play_seconds" to playSeconds,
+    )
 }
 
 /**
@@ -52,13 +90,26 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         const val POWER_SECONDS = 10f
         const val QUESTIONS_PER_VISIT = 3
         const val LIVES_PER_VISIT = 2
-        val SAVE_KEYS = listOf("level", "finished", "balance", "lives", "gems", "speed", "size", "caught", "fallCount", "shop", "priceBase")
+        /** Extra answer time for knowledge questions: one second per this many characters of question text. */
+        const val READING_CHARS_PER_SECOND = 20
+        val SAVE_KEYS = listOf("level", "finished", "balance", "lives", "gems", "speed", "size", "caught", "fallCount", "shop", "priceBase", "attempt")
     }
 
     var mode = Mode.MENU
     var worldHeight = 740f
     val rim: Float get() = worldHeight - 157f
     val ground: Float get() = worldHeight - 119f
+
+    /** Set by the app: downloaded knowledge questions and the app version for the statistics. */
+    var bank = QuestionBank()
+    var appVersion = "dev"
+    var sessionId: String = UUID.randomUUID().toString()
+        private set
+    private val asked = HashSet<Int>()
+    private var record: LevelRecord? = null
+    private var lastStartedLevel = 0
+    var attempt = 0
+        private set
 
     // Progress through the game
     var level = 1
@@ -103,6 +154,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     var lifeMathDone = false
     var mathMenu = false
     var priceBase = 1
+    var gateCorrect = 0
 
     // Question
     var question: Question? = null
@@ -134,6 +186,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     fun canBuySize() = sizeLevel < SIZE_STEPS && gems >= sizePrice()
     fun canBuyLife() = livesBought < LIVES_PER_VISIT && lives < maxLives() && balance >= lifePrice()
     fun canMathLife() = midLevelShop && !lifeMathDone && lifeMathLeft > 0 && lives < maxLives()
+    fun gateRemaining() = max(0, rules.gateQuestions - gateCorrect)
     fun timeRemaining() = max(0f, rules.levelSeconds - levelTime)
     /** Level number to show: the finished one while in the shop between levels. */
     fun shownLevel() = if (!midLevelShop && (mode == Mode.SHOP || mode == Mode.QUESTION)) finishedLevel else level
@@ -142,6 +195,9 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     // ---- Game flow ----
 
     fun newGame() {
+        closeRecord()
+        sessionId = UUID.randomUUID().toString()
+        asked.clear(); lastStartedLevel = 0; attempt = 0
         level = 1; finishedLevel = 0; balance = 0; lives = rules.startLives; gems = 0
         speedLevel = 0; sizeLevel = 0; caught = 0; fallCount = 0; basketX = W / 2; priceBase = 1
         startLevel()
@@ -150,23 +206,34 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     fun snapshot(inShop: Boolean): Map<String, Int> = mapOf(
         "level" to level, "finished" to finishedLevel, "balance" to balance, "lives" to lives, "gems" to gems,
         "speed" to speedLevel, "size" to sizeLevel, "caught" to caught, "fallCount" to fallCount,
-        "shop" to if (inShop) 1 else 0, "priceBase" to priceBase,
+        "shop" to if (inShop) 1 else 0, "priceBase" to priceBase, "attempt" to attempt,
     )
 
-    fun continueGame(s: Map<String, Int>) {
+    /** Continues a saved game. session is the statistics id of that game, if it was saved. */
+    fun continueGame(s: Map<String, Int>, session: String? = null) {
+        closeRecord()
+        sessionId = session ?: UUID.randomUUID().toString()
+        asked.clear()
         level = s["level"] ?: 1; finishedLevel = s["finished"] ?: (level - 1)
         balance = s["balance"] ?: 0; lives = s["lives"] ?: rules.startLives; gems = s["gems"] ?: 0
         speedLevel = (s["speed"] ?: 0).coerceIn(0, MAX_SPEED_LEVEL); sizeLevel = (s["size"] ?: 0).coerceIn(0, SIZE_STEPS)
         caught = s["caught"] ?: 0; fallCount = s["fallCount"] ?: 0; priceBase = s["priceBase"] ?: 1
         basketX = W / 2
         if ((s["shop"] ?: 0) == 1) {
+            lastStartedLevel = 0; attempt = 0
             levelCoins = priceBase
             openShop(false)
             note = "Välkommen tillbaka!"
-        } else startLevel()
+        } else {
+            lastStartedLevel = level; attempt = s["attempt"] ?: 0
+            startLevel()
+        }
     }
 
     private fun startLevel() {
+        closeRecord()
+        attempt = if (level == lastStartedLevel) attempt + 1 else 1
+        lastStartedLevel = level
         listener.saveProgress(snapshot(false))
         levelTime = 0f; caughtThisLevel = 0; next = 0
         active.clear(); labels.clear()
@@ -175,6 +242,10 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         val bw = basketWidth()
         basketX = basketX.coerceIn(bw / 2, W - bw / 2)
         generate()
+        record = LevelRecord(
+            level, attempt, speedLevel, sizeLevel, effectiveMf(), lives,
+            schedule.count { it.kind == Kind.COIN }, schedule.count { it.kind == Kind.BILL }, schedule.count { it.kind == Kind.GEM },
+        )
         banner = 2.5f; note = ""; question = null
         mode = Mode.PLAYING
     }
@@ -202,7 +273,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
             if (land > rules.levelSeconds) break
             val fall = fallTime(level, land)
             val release = land - fall
-            schedule.add(Drop(Kind.COIN, nx, release, fall))
+            schedule.add(Drop(Kind.COIN, nx, release, fall, mf = mf * 100f, dist = abs(nx - px)))
             coins++
             if (level >= rules.specialFromLevel) {
                 fallCount++
@@ -246,6 +317,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
 
     private fun play(dt: Float) {
         banner = max(0f, banner - dt)
+        record?.let { it.playSeconds += dt }
         val bw = basketWidth()
         if (moveDir != 0) {
             val nx = (basketX + moveDir * playerSpeed() * dt).coerceIn(bw / 2, W - bw / 2)
@@ -264,8 +336,14 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         for (d in active) {
             if (d.state != 0 || levelTime < d.land) continue
             val x = d.x(d.land)
-            val inBasket = abs(x - basketX) <= bw / 2 || (groundLeft > 0f && abs(x - groundX) <= bw / 2)
-            if (inBasket) { d.state = 1; collect(d, x) } else { d.state = 2; if (d.kind == Kind.COIN) lost++ }
+            val fromBasket = abs(x - basketX)
+            val fromGround = if (groundLeft > 0f) abs(x - groundX) else Float.MAX_VALUE
+            if (min(fromBasket, fromGround) <= bw / 2) {
+                d.state = 1; collect(d, x)
+            } else {
+                d.state = 2
+                if (d.kind == Kind.COIN) { lost++; recordMiss(d, min(fromBasket, fromGround) - bw / 2, bw) }
+            }
         }
         active.removeAll { it.state == 1 || (it.state == 2 && y(it) > ground + 16f) }
 
@@ -280,17 +358,38 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         if (levelTime >= rules.levelSeconds && next >= schedule.size && active.none { it.state == 0 }) levelDone()
     }
 
+    private fun recordMiss(d: Drop, missBy: Float, bw: Float) {
+        val r = record ?: return
+        r.livesLost++
+        if (r.misses.size >= 1000) return
+        r.misses.add(mapOf(
+            "level_time" to levelTime, "mf_planned" to d.mf, "mf_effective" to d.mf * playerSpeed() / refSpeed(level),
+            "distance" to d.dist.roundToInt(), "miss_by" to missBy, "basket_width" to bw,
+            "slow_active" to if (slowLeft > 0f) 1 else 0,
+        ))
+    }
+
     private fun collect(d: Drop, x: Float) {
         caught++; caughtThisLevel++
         when (d.kind) {
-            Kind.COIN -> { balance++; listener.sound(Sfx.COIN); labels.add(Label(x, rim - 12f, "+1", Col.GOLD)) }
-            Kind.BILL -> { balance += rules.billValue; listener.sound(Sfx.BILL); labels.add(Label(x, rim - 12f, "+${rules.billValue}", rgb(140, 230, 140))) }
-            Kind.GEM -> { gems++; listener.sound(Sfx.GEM); labels.add(Label(x, rim - 12f, "+1 sten", rgb(120, 220, 255))) }
+            Kind.COIN -> {
+                balance++; record?.let { it.coinsCaught++ }
+                listener.sound(Sfx.COIN); labels.add(Label(x, rim - 12f, "+1", Col.GOLD))
+            }
+            Kind.BILL -> {
+                balance += rules.billValue; record?.let { it.billsCaught++ }
+                listener.sound(Sfx.BILL); labels.add(Label(x, rim - 12f, "+${rules.billValue}", rgb(140, 230, 140)))
+            }
+            Kind.GEM -> {
+                gems++; record?.let { it.gemsCaught++ }
+                listener.sound(Sfx.GEM); labels.add(Label(x, rim - 12f, "+1 sten", rgb(120, 220, 255)))
+            }
         }
     }
 
     private fun levelDone() {
         listener.sound(Sfx.LEVEL)
+        record?.let { it.outcome = "completed"; it.balanceEnd = balance }
         finishedLevel = level
         note = "Fångat $caughtThisLevel av $levelObjects."
         level++
@@ -307,18 +406,36 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         if (mid) {
             lifeMathLeft = QUESTIONS_PER_VISIT; lifeMathDone = false
         } else {
-            moneyMathLeft = QUESTIONS_PER_VISIT
+            moneyMathLeft = QUESTIONS_PER_VISIT; gateCorrect = 0
             listener.saveProgress(snapshot(true))
         }
         mode = Mode.SHOP
     }
 
     private fun gameOver() {
+        record?.outcome = "game_over"
+        closeRecord()
         finishedLevel = level
         mode = Mode.GAME_OVER
         setInput(false, false)
         if (caught > high) { high = caught; listener.newRecord(high) }
         listener.saveProgress(null)
+    }
+
+    /** Hands the open level record to the app for upload. */
+    private fun closeRecord() {
+        val r = record ?: return
+        record = null
+        val payload = mapOf(
+            "session" to mapOf(
+                "uuid" to sessionId, "app_version" to appVersion, "settings" to rules.asMap(),
+                "world_height" to worldHeight.roundToInt().coerceIn(100, 5000), "grade" to rules.grade,
+            ),
+            "level" to r.toMap(balance),
+            "misses" to r.misses,
+            "answers" to r.answers,
+        )
+        listener.statsReady(Json.encode(payload))
     }
 
     // ---- Buttons ----
@@ -328,7 +445,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
             "new" -> newGame()
             "pause" -> if (mode == Mode.PLAYING) { mode = Mode.PAUSED; setInput(false, false) }
             "resume" -> if (mode == Mode.PAUSED) mode = Mode.PLAYING
-            "menu" -> mode = Mode.MENU
+            "menu" -> { if (mode == Mode.PAUSED) closeRecord(); mode = Mode.MENU }
             "speed" -> buySpeed()
             "size" -> buySize()
             "life" -> buyLife()
@@ -343,10 +460,16 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         }
     }
 
+    /** Asks a question: a knowledge question from the bank (if the setting and the bank allow) or math. */
     private fun ask(p: Purpose, difficulty: Int) {
         purpose = p
-        question = MathQuiz.generate(difficulty, rnd)
-        timeTotal = rules.answerSeconds; timeLeft = timeTotal
+        val d = difficulty.coerceIn(1, 5)
+        val fromBank = rules.knowledgePct > 0 && rnd.nextInt(100) < rules.knowledgePct
+        val q = (if (fromBank) bank.pick(rules.grade, d, asked, rnd) else null) ?: MathQuiz.generate(d, rnd)
+        q.bankId?.let { asked.add(it) }
+        question = q
+        val reading = if (q.bankId != null) (q.text.length / READING_CHARS_PER_SECOND).toFloat() else 0f
+        timeTotal = rules.answerSeconds + reading; timeLeft = timeTotal
         mode = Mode.QUESTION
     }
 
@@ -359,6 +482,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     private fun buySize() {
         if (mode != Mode.SHOP || !canBuySize()) return
         gems -= sizePrice(); sizeLevel++
+        record?.let { it.sizeBought++ }
         val bw = basketWidth(); basketX = basketX.coerceIn(bw / 2, W - bw / 2)
         listener.sound(Sfx.BUY)
         note = "Större korg! Storlek ${sizeLevel + 1} av ${SIZE_STEPS + 1}."
@@ -367,6 +491,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     private fun buyLife() {
         if (mode != Mode.SHOP || !canBuyLife()) return
         balance -= lifePrice(); lives++; livesBought++
+        record?.let { it.livesBought++ }
         listener.sound(Sfx.BUY)
         note = "Ett liv till! Du har $lives liv."
     }
@@ -376,7 +501,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         moneyMathLeft--
         mathMenu = false
         reward = mathReward(choice)
-        ask(Purpose.MONEY, (mathDifficulty() + choice - 1).coerceIn(1, 5))
+        ask(Purpose.MONEY, mathDifficulty() + choice - 1)
     }
 
     private fun mathLife() {
@@ -387,53 +512,78 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
 
     private fun leaveShop() {
         if (mode != Mode.SHOP) return
-        if (midLevelShop) { mode = Mode.PLAYING; note = "" } else startLevel()
+        when {
+            midLevelShop -> { mode = Mode.PLAYING; note = "" }
+            gateRemaining() > 0 -> ask(Purpose.GATE, mathDifficulty())
+            else -> startLevel()
+        }
     }
 
-    private fun answer(value: Int?) {
+    private fun answer(index: Int?) {
         val q = question ?: return
-        val right = value == q.answer
-        val wrong = if (value == null) "Tiden tog slut. Rätt svar: ${q.answer}." else "Fel! Rätt svar: ${q.answer}."
+        val right = index != null && index == q.correct
+        record?.let { r ->
+            if (r.answers.size < 200) r.answers.add(mapOf(
+                "purpose" to purpose.name.lowercase(), "question_id" to q.bankId, "subject_code" to q.subject,
+                "difficulty" to q.difficulty, "question_text" to if (q.bankId == null) q.text else null,
+                "correct" to if (right) 1 else 0, "timed_out" to if (index == null) 1 else 0,
+                "answer_ms" to ((timeTotal - timeLeft) * 1000).roundToInt(), "time_limit_ms" to (timeTotal * 1000).roundToInt(),
+            ))
+        }
+        val wrong = if (index == null) "Tiden tog slut. Rätt svar: ${q.answerText}." else "Fel! Rätt svar: ${q.answerText}."
+        val extra = q.explanation?.let { " $it" } ?: ""
+        question = null
+        mode = Mode.SHOP
         when (purpose) {
             Purpose.SPEED -> if (right) {
                 val refund = (stake * rules.refundPct / 100f * (timeLeft / timeTotal)).roundToInt()
                 balance += refund; speedLevel++
+                record?.let { it.speedBought++ }
                 listener.sound(Sfx.BUY)
                 note = "Snabbare korg! Ny dragare: ${Draggers.name(speedLevel + 1)}. Tillbaka: $refund mynt."
             } else {
                 listener.sound(Sfx.WRONG)
-                note = "$wrong Insatsen på $stake mynt är förlorad."
+                note = "$wrong Insatsen på $stake mynt är förlorad.$extra"
             }
             Purpose.MONEY -> if (right) {
                 balance += reward
                 listener.sound(Sfx.BUY)
-                note = "Rätt! +$reward mynt."
+                note = "Rätt! +$reward mynt.$extra"
             } else {
                 listener.sound(Sfx.WRONG)
-                note = wrong
+                note = wrong + extra
             }
             Purpose.LIFE -> if (right) {
                 lives = min(maxLives(), lives + 1); lifeMathDone = true
+                record?.let { it.livesBought++ }
                 listener.sound(Sfx.BUY)
-                note = "Rätt! Ett liv till."
+                note = "Rätt! Ett liv till.$extra"
             } else {
                 listener.sound(Sfx.WRONG)
-                note = if (lifeMathLeft > 0) "$wrong Försök igen." else wrong
+                note = (if (lifeMathLeft > 0) "$wrong Försök igen." else wrong) + extra
+            }
+            Purpose.GATE -> if (right) {
+                gateCorrect++
+                listener.sound(Sfx.BUY)
+                if (gateRemaining() > 0) ask(Purpose.GATE, mathDifficulty()) else startLevel()
+            } else {
+                listener.sound(Sfx.WRONG)
+                note = "$wrong Svara rätt för att starta nivån.$extra"
             }
         }
-        question = null
-        mode = Mode.SHOP
     }
 
     private fun useGround() {
         if (mode != Mode.PLAYING || gems < 1 || groundLeft > 0f) return
         gems--; groundX = basketX; groundLeft = POWER_SECONDS
+        record?.let { it.groundUsed++ }
         listener.sound(Sfx.BUY)
     }
 
     private fun useSlow() {
         if (mode != Mode.PLAYING || gems < 1 || slowLeft > 0f) return
         gems--; slowLeft = POWER_SECONDS
+        record?.let { it.slowUsed++ }
         listener.sound(Sfx.BUY)
     }
 }

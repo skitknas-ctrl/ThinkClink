@@ -80,6 +80,9 @@ Butiken öppnas mellan nivåerna och när man förlorat ett liv mitt i en nivå.
 - **Liv:** kostar halva kapitalet du hade när du kom in i butiken. Köper du två vid samma besök kostar det andra hälften så mycket, alltså en fjärdedel av kapitalet. Högst 2 per besök. Inget mattekrav. **[förslag, godkänt]** Minsta pris är 1 mynt.
 - **Matte för pengar (mellan nivåerna):** högst 3 frågor med 10 s *(inst.)* betänketid vardera. Man väljer lätt, medel eller svår för varje fråga. Belöningen är 5, 10 eller 15 % *(inst.)* av myntantalet i nivån. Fel svar ger ingenting. **[förslag, godkänt]**
 - **Matte för liv (när man förlorat ett liv):** högst 3 frågor med 10 s vardera. Första rätta svaret ger ett liv.
+- **Starta nästa nivå:** kräver rätt svar på en fråga *(inst.)*, se avsnitt 13.
+
+Frågorna i butiken kan vara mattefrågor eller kunskapsfrågor från databasen, se avsnitt 13.
 
 ## 7. Ädelstenar
 
@@ -155,12 +158,43 @@ Klirr för mynt, prassel för sedel, ett eget ljud för ädelsten, ett för för
 | Max återbetalning vid snabbt svar | 30 % |
 | Mattebelöning lätt/medel/svår, % | 5/10/15 |
 | Mattesvårighet, startnivå | 1 |
+| Rätta svar som krävs för att starta nästa nivå | 1 |
+| Årskurs för kunskapsfrågor | 4 |
+| Andel kunskapsfrågor i stället för matte | 50 % |
+| Skicka anonym statistik | på |
 | Ljud | på |
 | Visa MF under spel | på |
 
 Inställningarna från första versionen (tillåtna missar, myntflöde, max mynt samtidigt, ökning per minut, grundpris) är borta, eftersom MF ersätter dem.
 
-## 13. Senare
+## 13. Kunskapsfrågor
+
+Spelet riktar sig till skolelever, så frågorna är inte bara matte. Kunskapsfrågor hämtas från databasen på servern (`server/schema.sql`, tabellen `questions`) när det finns internet, och sparas i appen så att spelet fungerar utan uppkoppling.
+
+- Varje gång spelet ställer en fråga (fartköp, matte för pengar eller liv, frågan för att starta nivån) blir det med 50 % *(inst.)* chans en kunskapsfråga för vald årskurs *(inst.)*, annars en mattefråga.
+- Spelet väljer en fråga med svårighet så nära den önskade som möjligt och ställer inte samma fråga två gånger i samma spel. Finns ingen kvar blir det matte.
+- Kunskapsfrågor får en extra sekund svarstid per 20 tecken frågetext, för läsningen.
+- Finns en förklaring i databasen visas den efter svaret.
+- **För att starta nästa nivå** måste man svara rätt på 1 fråga *(inst.)*. Fel svar ger ingen straff, men man får en ny fråga när man försöker igen.
+- Startskärmen visar hur många frågor som finns för vald årskurs och när de senast hämtades.
+
+Namnet MathChallange-1 och den interna app-id:n bör bytas innan appen sprids, eftersom spelet inte längre bara handlar om matte (byts id:t senare blir det en ny app för den som redan har den).
+
+## 14. Anonym statistik
+
+För att se hur lätt eller svårt spelet är med olika inställningar skickar appen statistik till servern (`server/api/stats.php`). Den kan stängas av under Testinställningar.
+
+- En post per spelad nivå: utfall, inställningar, upplevd MF, tappade och köpta liv, köp, fångade mynt, sedlar och stenar, speltid.
+- En rad per missat mynt: när i nivån, planerad och upplevd MF, avstånd från förra myntet, hur långt utanför korgen.
+- En rad per besvarad fråga: syfte, ämne, svårighet, fråge-id eller mattetal, rätt eller fel, svarstid.
+- Ingen information om personen eller telefonen: inga namn, inget enhets-id, ingen IP-adress. Varje spel får ett slumpat id, så två spel på samma telefon går inte att koppla ihop.
+- Nivån skickas när nästa nivå startar (så att butiksbesöket efter nivån kommer med), när spelet tar slut eller när man går till menyn mitt i en nivå. Utan internet läggs nivåerna i kö i appen och skickas senare.
+- Sammanställningar finns som vyer i databasen: `v_level_difficulty`, `v_misses_by_mf` och `v_question_stats`.
+
+Innan appen sprids till skolor behöver det stå tydligt i appen vad som skickas, och GDPR-frågan bör kontrolleras. Appar på F-Droid som skickar statistik kan få en varningsmärkning.
+
+## 15. Senare
 
 - Dynamitgubbe att undvika på senare nivåer.
 - Vad händer efter fartsteg 31? I dag: inget mer att köpa, nivåerna fortsätter tills liven tar slut.
+- Namnbyte och val av årskurs och ämnen för spelaren (i dag bara i Testinställningar).

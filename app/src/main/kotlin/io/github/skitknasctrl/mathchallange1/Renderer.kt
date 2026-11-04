@@ -20,6 +20,8 @@ class Renderer(private val e: Engine) {
     val buttons = ArrayList<Button>()
     /** Level of the saved game shown on the start screen, 0 if there is none. */
     var savedLevel = 0
+    /** Small status lines on the start screen (downloaded questions, statistics). */
+    var info: List<String> = emptyList()
 
     fun zoneAt(x: Float, y: Float): Int {
         val h = e.worldHeight
@@ -224,6 +226,8 @@ class Renderer(private val e: Engine) {
         if (savedLevel > 0) { button(g, "Fortsätt", 55f, y, 305f, y + 50f, true, "continue", sub = "nivå $savedLevel"); y += 62f }
         button(g, "Nytt spel", 55f, y, 305f, y + 50f, true, "new"); y += 62f
         button(g, "Testinställningar", 55f, y, 305f, y + 50f, true, "settings")
+        y += 76f
+        for (line in info) { g.fitText(line, 180f, y, 12f, Col.SOFT, 330f); y += 17f }
     }
 
     private fun pause(g: Gfx, h: Float) {
@@ -274,28 +278,57 @@ class Renderer(private val e: Engine) {
             else -> "1 rätt räcker · ${e.lifeMathLeft} frågor kvar"
         })
         else row("Räkna för pengar", e.moneyMathLeft > 0, "mathMenu", "${e.moneyMathLeft} frågor kvar")
-        row(if (mid) "Fortsätt nivån" else "Starta nivå ${e.level}", true, "leave", null)
+        val gate = if (mid) 0 else e.gateRemaining()
+        row(if (mid) "Fortsätt nivån" else "Starta nivå ${e.level}", true, "leave",
+            if (gate > 0) "svara rätt på $gate ${if (gate == 1) "fråga" else "frågor"} först" else null)
     }
 
     private fun question(g: Gfx, h: Float) {
         val q = e.question ?: return
         overlay(g, h)
-        val top = max(130f, (h - 360f) / 2)
         val (title, sub) = when (e.purpose) {
             Purpose.SPEED -> "KÖP SNABBARE KORG" to "Insats: ${e.stake} mynt"
-            Purpose.MONEY -> "RÄKNA FÖR PENGAR" to "Rätt svar ger ${e.reward} mynt"
-            Purpose.LIFE -> "RÄKNA FÖR LIV" to "Rätt svar ger ett liv"
+            Purpose.MONEY -> "FRÅGA FÖR PENGAR" to "Rätt svar ger ${e.reward} mynt"
+            Purpose.LIFE -> "FRÅGA FÖR LIV" to "Rätt svar ger ett liv"
+            Purpose.GATE -> "FRÅGA FÖR NIVÅ ${e.level}" to
+                if (e.rules.gateQuestions > 1) "Svara rätt för att starta (${e.gateCorrect + 1} av ${e.rules.gateQuestions})"
+                else "Svara rätt för att starta nivån"
         }
-        g.text(title, 180f, top + 25f, 21f, Col.WHITE)
-        g.text(sub, 180f, top + 52f, 15f, Col.SOFT)
-        g.fitText("${q.text} = ?", 180f, top + 104f, 34f, Col.GOLD, 330f)
-        g.text(String.format(java.util.Locale.forLanguageTag("sv-SE"), "%.1f sekunder kvar", e.timeLeft), 180f, top + 140f, 17f, Col.WHITE)
-        g.roundRect(30f, top + 155f, 330f, top + 162f, 3.5f, rgb(60, 66, 80))
-        g.roundRect(30f, top + 155f, 30f + 300f * (e.timeLeft / e.timeTotal), top + 162f, 3.5f, Col.TEAL)
+        // Math is one big line; knowledge questions are wrapped and get smaller text when long.
+        var textSize = 34f
+        var lines = listOf(q.text)
+        if (q.bankId != null) {
+            textSize = 21f
+            lines = g.wrap(q.text, textSize, 320f)
+            if (lines.size > 4) { textSize = 18f; lines = g.wrap(q.text, textSize, 320f) }
+            lines = lines.take(7)
+        }
+        val lineH = textSize * 1.25f
+        val grid = q.options.size == 6 && q.options.all { g.textWidth(it, 20f) <= 128f }
+        val rows = if (grid) 3 else q.options.size
+        var step = if (grid) 60f else 50f
+        val total = 76f + lines.size * lineH + 50f + rows * step
+        var y = max(128f, 122f + (h - 122f - total) / 2)
+        g.text(title, 180f, y + 22f, 21f, Col.WHITE)
+        g.fitText(sub, 180f, y + 46f, 14f, Col.SOFT, 330f)
+        g.text(q.subjectName, 180f, y + 68f, 12f, Col.TEAL)
+        y += 76f
+        for (line in lines) { y += lineH; g.fitText(line, 180f, y - lineH * 0.22f, textSize, Col.GOLD, 330f) }
+        y += 22f
+        g.text(String.format(java.util.Locale.forLanguageTag("sv-SE"), "%.1f sekunder kvar", e.timeLeft), 180f, y, 15f, Col.WHITE)
+        g.roundRect(30f, y + 9f, 330f, y + 15f, 3f, rgb(60, 66, 80))
+        g.roundRect(30f, y + 9f, 30f + 300f * (e.timeLeft / e.timeTotal), y + 15f, 3f, Col.TEAL)
+        y += 28f
+        step = min(step, (h - 8f - y) / rows)
         q.options.forEachIndexed { i, option ->
-            val x = 25f + (i % 2) * 160f
-            val y = top + 182f + (i / 2) * 60f
-            button(g, option.toString(), x, y, x + 150f, y + 50f, true, "answer", option, size = 20f)
+            if (grid) {
+                val x = 25f + (i % 2) * 160f
+                val yy = y + (i / 2) * step
+                button(g, option, x, yy, x + 150f, yy + step - 10f, true, "answer", i, size = 20f)
+            } else {
+                val yy = y + i * step
+                button(g, option, 30f, yy, 330f, yy + step - 8f, true, "answer", i, size = 16f)
+            }
         }
     }
 

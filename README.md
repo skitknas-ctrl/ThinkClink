@@ -12,7 +12,10 @@ Fånga mynt med en korg, köp större korgar genom att lösa huvudräkning. Spel
 - Från nivå 3 faller ibland sedlar (värda 100 mynt) och ädelstenar. Stenar köper större korg, en extra korg på marken i 10 s eller slowmotion i 10 s.
 - Korgen dras av en gubbe, en lastcykel, en åsna … och till slut tåg och jetmotorer: en ny dragare för varje fartköp.
 
-Alla regler och siffror står i [DESIGN.md](DESIGN.md). Värdena kan ändras under **Testinställningar** på startskärmen och under Paus.
+- Frågorna är både matte och kunskapsfrågor i skolämnen, som hämtas från en databas på servern. Man måste svara rätt för att starta nästa nivå.
+- Appen skickar anonym spelstatistik (kan stängas av), för att se hur svårt spelet är med olika inställningar.
+
+Alla regler och siffror står i [DESIGN.md](DESIGN.md). Servern (databas och API) finns i `server/`. Värdena kan ändras under **Testinställningar** på startskärmen och under Paus.
 
 ## Bygga
 
@@ -33,7 +36,9 @@ Testbyggen signeras med nyckeln i `app/debug.keystore` (endast för test) så at
 - `app/src/main/kotlin/.../Engine.kt` – spelregler och spelläge (ren Kotlin)
 - `Renderer.kt`, `Draggers.kt` – all grafik, ritad med vektorgrafik via det lilla rit-gränssnittet i `Gfx.kt`
 - `GameView.kt`, `MainActivity.kt`, `AndroidGfx.kt`, `Sound.kt` – Android-delen
-- `Rules.kt` – testinställningarna, `MathQuiz.kt` – mattefrågorna, `Synth.kt` – ljudeffekterna
+- `Rules.kt` – testinställningarna, `MathQuiz.kt` – mattefrågorna, `QuestionBank.kt` – kunskapsfrågorna, `Synth.kt` – ljudeffekterna
+- `Backend.kt` – hämtar frågor och skickar statistik till servern, `Json.kt` – statistikens JSON
+- `server/schema.sql` – databasen, `server/api/` – API:t i PHP
 - `DESIGN.md` – reglerna
 - `.github/workflows/build.yml` – bygge och testutgåvor
 

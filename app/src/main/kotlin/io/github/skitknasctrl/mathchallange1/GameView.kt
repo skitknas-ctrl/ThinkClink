@@ -10,13 +10,18 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.min
 
-/** Android side of the game: frame loop, touch, saving, sound and the settings dialog. */
+/** Android side of the game: frame loop, touch, saving, sound, network and the settings dialog. */
 class GameView(private val host: Activity) : View(host), GameListener {
     private val prefs = host.getSharedPreferences("mathchallange", 0)
     private val gfx = AndroidGfx()
     private val sound = Sound(host)
+    private val appVersion = readAppVersion()
+    private val backend = Backend(host, appVersion)
     private val engine: Engine
     private val renderer: Renderer
     private var scale = 1f
@@ -26,10 +31,39 @@ class GameView(private val host: Activity) : View(host), GameListener {
 
     init {
         engine = Engine(loadRules(), prefs.getInt("high", 0), this)
+        engine.appVersion = appVersion
         renderer = Renderer(engine)
         renderer.savedLevel = if (prefs.contains("save_level")) prefs.getInt("save_level", 0) else 0
         sound.enabled = engine.rules.sound
         isFocusable = true
+        backend.onChange = { updateInfo() }
+        backend.loadCached { bank -> engine.bank = bank; updateInfo() }
+        backend.sync(true) { bank -> engine.bank = bank }
+        if (engine.rules.sendStats) backend.flush()
+        updateInfo()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun readAppVersion(): String = try {
+        host.packageManager.getPackageInfo(host.packageName, 0).versionName ?: "dev"
+    } catch (e: Exception) {
+        "dev"
+    }
+
+    /** Status lines on the start screen, so it is easy to see that the server connection works. */
+    private fun updateInfo() {
+        val grade = engine.rules.grade
+        val count = engine.bank.countForGrade(grade)
+        val synced = if (backend.lastSyncMillis > 0)
+            "hämtade " + SimpleDateFormat("d/M HH:mm", Locale.forLanguageTag("sv-SE")).format(Date(backend.lastSyncMillis))
+        else "inte hämtade än"
+        val stats = if (engine.rules.sendStats) "Anonym statistik: på · ${backend.pending} nivåer väntar på uppladdning" else "Anonym statistik: av"
+        renderer.info = listOfNotNull(
+            "Kunskapsfrågor för åk $grade: $count ($synced)",
+            stats,
+            backend.lastError?.let { "Senaste nätfel: $it" },
+            "Version $appVersion",
+        )
     }
 
     private fun loadRules() = Rules(SettingsSpec.all.associate { it.key to prefs.getInt("set_${it.key}", it.default) })
@@ -46,18 +80,32 @@ class GameView(private val host: Activity) : View(host), GameListener {
     override fun saveProgress(state: Map<String, Int>?) {
         val edit = prefs.edit()
         for (key in Engine.SAVE_KEYS) edit.remove("save_$key")
-        state?.forEach { (k, v) -> edit.putInt("save_$k", v) }
+        edit.remove("save_session")
+        if (state != null) {
+            state.forEach { (k, v) -> edit.putInt("save_$k", v) }
+            edit.putString("save_session", engine.sessionId)
+        }
         edit.apply()
         renderer.savedLevel = state?.get("level") ?: 0
     }
 
     override fun newRecord(high: Int) { prefs.edit().putInt("high", high).apply() }
 
+    override fun statsReady(json: String) {
+        if (engine.rules.sendStats) backend.queue(json)
+    }
+
     // ---- Lifecycle ----
 
     fun onHostPause() { active = false; engine.lifecyclePause() }
-    fun onHostResume() { active = true; last = 0L; invalidate() }
-    fun release() = sound.release()
+
+    fun onHostResume() {
+        active = true; last = 0L; invalidate()
+        backend.sync(false) { bank -> engine.bank = bank }
+        if (engine.rules.sendStats) backend.flush()
+    }
+
+    fun release() { sound.release(); backend.shutdown() }
 
     // ---- Frame loop ----
 
@@ -111,7 +159,7 @@ class GameView(private val host: Activity) : View(host), GameListener {
     private fun press(b: Button) {
         when (b.id) {
             "settings" -> openSettings()
-            "continue" -> loadSave()?.let { engine.continueGame(it) } ?: engine.newGame()
+            "continue" -> loadSave()?.let { engine.continueGame(it, prefs.getString("save_session", null)) } ?: engine.newGame()
             else -> engine.press(b.id, b.arg)
         }
     }
@@ -159,7 +207,9 @@ class GameView(private val host: Activity) : View(host), GameListener {
                     edit.apply()
                     engine.rules = Rules(values)
                     sound.enabled = engine.rules.sound
+                    if (!engine.rules.sendStats) backend.clearOutbox()
                     engine.newGame()
+                    updateInfo()
                     dialog.dismiss()
                 }
             }

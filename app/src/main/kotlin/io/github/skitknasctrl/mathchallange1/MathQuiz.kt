@@ -5,7 +5,22 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
-class Question(val text: String, val answer: Int, val options: List<Int>)
+/**
+ * A multiple-choice question as shown in the game.
+ * bankId is the database id for knowledge questions and null for math questions made by the app.
+ */
+class Question(
+    val text: String,
+    val options: List<String>,
+    val correct: Int,
+    val subject: String,
+    val subjectName: String,
+    val difficulty: Int,
+    val bankId: Int? = null,
+    val explanation: String? = null,
+) {
+    val answerText: String get() = options[correct]
+}
 
 /**
  * Mental arithmetic with six answer options.
@@ -43,6 +58,7 @@ object MathQuiz {
             val candidate = answer + rnd.nextInt(-spread, spread + 1)
             if (candidate >= 0) choices.add(candidate)
         }
-        return Question(text, answer, choices.shuffled(rnd))
+        val options = choices.shuffled(rnd)
+        return Question("$text = ?", options.map { it.toString() }, options.indexOf(answer), "matte", "Matematik", d)
     }
 }
