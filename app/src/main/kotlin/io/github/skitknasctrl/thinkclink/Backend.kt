@@ -1,4 +1,4 @@
-package io.github.skitknasctrl.mathchallange1
+package io.github.skitknasctrl.thinkclink
 
 import android.content.Context
 import android.os.Handler

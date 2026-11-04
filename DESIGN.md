@@ -1,4 +1,4 @@
-# MathChallange-1 – design
+# ThinkClink – design
 
 Version 2026-11-04. Reglerna nedan är Dicks beslut. Där han godkänt Claudes förslag står det **[förslag, godkänt]**. Alla siffror markerade *(inst.)* går att ändra under Testinställningar under utvecklingen.
 
@@ -181,7 +181,7 @@ Spelet riktar sig till skolelever, så frågorna är inte bara matte. Kunskapsfr
 - **För att starta nästa nivå** måste man svara rätt på 1 fråga *(inst.)*. Fel svar ger ingen straff, men man får en ny fråga när man försöker igen.
 - Startskärmen visar hur många frågor som finns för vald årskurs och när de senast hämtades.
 
-Namnet MathChallange-1 och den interna app-id:n bör bytas innan appen sprids, eftersom spelet inte längre bara handlar om matte (byts id:t senare blir det en ny app för den som redan har den).
+Appen hette först MathChallange-1 men bytte namn till ThinkClink (repo och app-id `io.github.skitknasctrl.thinkclink`) den 4 november 2026, eftersom spelet inte längre bara handlar om matte. App-id:t bör inte bytas igen efter att appen spridits, eftersom det då blir en ny app för den som redan har den.
 
 ## 14. Anonym statistik
 
@@ -200,4 +200,4 @@ Innan appen sprids till skolor behöver det stå tydligt i appen vad som skickas
 
 - Dynamitgubbe att undvika på senare nivåer.
 - Vad händer efter fartsteg 31? I dag: inget mer att köpa, nivåerna fortsätter tills liven tar slut.
-- Namnbyte och val av årskurs och ämnen för spelaren (i dag bara i Testinställningar).
+- Val av årskurs och ämnen för spelaren (i dag bara i Testinställningar).

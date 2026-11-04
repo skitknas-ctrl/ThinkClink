@@ -1,4 +1,4 @@
-package io.github.skitknasctrl.mathchallange1
+package io.github.skitknasctrl.thinkclink
 
 import java.util.UUID
 import kotlin.math.abs

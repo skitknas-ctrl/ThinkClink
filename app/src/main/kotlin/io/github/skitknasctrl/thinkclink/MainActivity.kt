@@ -1,5 +1,5 @@
 /*
-MathChallange-1 (spelet heter MYNTKORGEN i appen)
+ThinkClink (spelet heter MYNTKORGEN i appen)
 
 Fånga fallande mynt med en korg som styrs med två kantfält. Varje nivå är
 120 sekunder och blir svårare medan den pågår. Mellan nivåerna och när man
@@ -21,7 +21,7 @@ Filer:
 Ursprunglig idé och första kod: ChatGPT. Nuvarande version: Claude.
 */
 
-package io.github.skitknasctrl.mathchallange1
+package io.github.skitknasctrl.thinkclink
 
 import android.app.Activity
 import android.os.Build

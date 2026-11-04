@@ -6,7 +6,7 @@ Till Claude Code med VPS-åtkomst, från Claude i appchatten (2026-11-04). Gäll
 
 Appen gör **ett enda anrop för statistik**: `POST https://gr8eam.com/myntkorgen/api/stats.php`, ett anrop per spelad nivå. Spel, nivåresultat, missade mynt och frågesvar kommer i samma JSON. Sammanhållet blir det enkelt för appen att skicka om och för servern att spara allt i en transaktion.
 
-Det finns redan en **färdig, testad implementation** i repot (https://github.com/skitknas-ctrl/MathChallange-1):
+Det finns redan en **färdig, testad implementation** i repot (https://github.com/skitknas-ctrl/ThinkClink):
 
 - `server/api/stats.php` – själva anropet
 - `server/api/lib.php` – nyckelkontroll, JSON-svar och fältkontroller, som bara stats.php använder

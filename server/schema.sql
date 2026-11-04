@@ -1,5 +1,5 @@
 -- =====================================================================
--- MathChallange-1 / Myntkorgen – databas för frågor och anonym spelstatistik
+-- ThinkClink / Myntkorgen – databas för frågor och anonym spelstatistik
 -- Schemaversion 1, 2026-11-04
 --
 -- Kräver MySQL 8.0.16+ eller MariaDB 10.4+ (InnoDB, utf8mb4, CHECK-villkor, JSON).

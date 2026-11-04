@@ -29,16 +29,16 @@ jobs:
         run: ./gradlew --no-daemon -PbuildNumber=${{ github.run_number }} assembleDebug
 
       - name: Collect APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk mathchallange-1-debug.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk thinkclink-debug.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mathchallange-1-debug
-          path: mathchallange-1-debug.apk
+          name: thinkclink-debug
+          path: thinkclink-debug.apk
 
       # Rolling test release: a new tag per build (0.1.0-test.<n>) so that Obtainium sees every
       # build as a new version; older test releases are removed. Stable download URL:
-      # https://github.com/${{ github.repository }}/releases/latest/download/mathchallange-1-debug.apk
+      # https://github.com/${{ github.repository }}/releases/latest/download/thinkclink-debug.apk
       - name: Publish test build
         if: github.ref == 'refs/heads/main'
         env:
@@ -50,7 +50,7 @@ jobs:
           for old in $(gh release list --limit 100 --json tagName --jq '.[].tagName' | grep -E '^testbuild$|-test\.[0-9]+$' | sort -t. -k4,4n -r | tail -n +3 || true); do
             gh release delete "$old" --cleanup-tag --yes || true
           done
-          gh release create "$VERSION" mathchallange-1-debug.apk \
+          gh release create "$VERSION" thinkclink-debug.apk \
             --latest \
             --title "Testbygge $VERSION" \
             --notes "Automatiskt bygge av commit ${GITHUB_SHA::7}. Signerat med test-nyckeln; kan installeras ovanpå tidigare testbyggen."
@@ -79,8 +79,8 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           ./gradlew --no-daemon assembleRelease
-          cp app/build/outputs/apk/release/app-release*.apk mathchallange-1-${GITHUB_REF_NAME}.apk
+          cp app/build/outputs/apk/release/app-release*.apk thinkclink-${GITHUB_REF_NAME}.apk
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" mathchallange-1-${GITHUB_REF_NAME}.apk --title "MathChallange-1 ${GITHUB_REF_NAME}" --generate-notes
+        run: gh release create "${GITHUB_REF_NAME}" thinkclink-${GITHUB_REF_NAME}.apk --title "ThinkClink ${GITHUB_REF_NAME}" --generate-notes

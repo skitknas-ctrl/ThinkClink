@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "io.github.skitknasctrl.mathchallange1"
+    namespace = "io.github.skitknasctrl.thinkclink"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.github.skitknasctrl.mathchallange1"
+        applicationId = "io.github.skitknasctrl.thinkclink"
         minSdk = 26
         targetSdk = 35
         // CI passes -PbuildNumber=<run number>; test builds are then versioned 0.1.0-test.<n>

@@ -1,4 +1,4 @@
-package io.github.skitknasctrl.mathchallange1
+package io.github.skitknasctrl.thinkclink
 
 /** One adjustable value in the developer settings (Testinställningar). */
 class Setting(val key: String, val label: String, val default: Int, val min: Int, val max: Int)

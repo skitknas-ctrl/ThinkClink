@@ -9,7 +9,7 @@ Två nya filer i API-mappen. Inga schemaändringar och inget som rör `config.ph
 | `server/api/lib.php` | `api/lib.php` – nyckelkontroll, JSON-svar och fältkontroller; svarar 404 om den anropas direkt. Finns det redan en lib.php: döp om till `stats_lib.php` och ändra require-raden i stats.php |
 | `server/api/stats.php` | `api/stats.php` – POST, tar emot statistik för en spelad nivå |
 
-Filerna finns i repot https://github.com/skitknas-ctrl/MathChallange-1 under `server/api/`. De förutsätter `config.php` med nycklarna `db_host`, `db_name`, `db_user`, `db_pass`, `db_charset`, precis som beskrivet. De använder bara mysqli (mysqlnd), json och mbstring, och fungerar med PHP 8.1 och nyare. Lokalt testade med PHP 8.3 och MariaDB 10.11.
+Filerna finns i repot https://github.com/skitknas-ctrl/ThinkClink under `server/api/`. De förutsätter `config.php` med nycklarna `db_host`, `db_name`, `db_user`, `db_pass`, `db_charset`, precis som beskrivet. De använder bara mysqli (mysqlnd), json och mbstring, och fungerar med PHP 8.1 och nyare. Lokalt testade med PHP 8.3 och MariaDB 10.11.
 
 ## Tester efter uppladdning
 

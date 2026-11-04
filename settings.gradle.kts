@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "MathChallange-1"
+rootProject.name = "ThinkClink"
 include(":app")

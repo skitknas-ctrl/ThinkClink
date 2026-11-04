@@ -1,4 +1,4 @@
-package io.github.skitknasctrl.mathchallange1
+package io.github.skitknasctrl.thinkclink
 
 import android.app.Activity
 import android.app.AlertDialog
@@ -17,7 +17,7 @@ import kotlin.math.min
 
 /** Android side of the game: frame loop, touch, saving, sound, network and the settings dialog. */
 class GameView(private val host: Activity) : View(host), GameListener {
-    private val prefs = host.getSharedPreferences("mathchallange", 0)
+    private val prefs = host.getSharedPreferences("thinkclink", 0)
     private val sound = Sound(host)
     private val appVersion = readAppVersion()
     private val backend = Backend(host, appVersion)
