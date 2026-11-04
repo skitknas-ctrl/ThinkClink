@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- basket -->
+    <path android:fillColor="#B26B30" android:pathData="M31,64 L77,64 L71,86 L37,86 Z" />
+    <path android:fillColor="#E7AB5A" android:pathData="M27,62 L81,62 L81,68 L27,68 Z" />
+    <!-- coin -->
+    <path android:fillColor="#EFA626" android:pathData="M54,25 m-15,0 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0" />
+    <path android:fillColor="#FFDC69" android:pathData="M53,24 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0" />
+    <path android:fillColor="#88540A" android:pathData="M49,26 L52.5,23 L52.5,18 L56,18 L56,33 L52.5,33 L52.5,27.5 L49,29.5 Z" />
+</vector>
