@@ -440,6 +440,7 @@ class Renderer(private val e: Engine) {
             rows.add(Triple(T.s("shop.mathMoney"), e.moneyMathLeft > 0, "mathMenu" to 0))
             subs.add(T.f("shop.questionsLeft", e.moneyMathLeft))
         }
+        if (!mid) { rows.add(Triple(T.s("menu.settings"), true, "settings" to 0)); subs.add(null) }
         val gate = if (mid) 0 else e.gateRemaining()
         rows.add(Triple(if (mid) T.s("shop.continue") else T.f("shop.start", e.level), true, "leave" to 0))
         subs.add(when { gate == 1 -> T.s("shop.gate1"); gate > 1 -> T.f("shop.gateN", gate); else -> null })

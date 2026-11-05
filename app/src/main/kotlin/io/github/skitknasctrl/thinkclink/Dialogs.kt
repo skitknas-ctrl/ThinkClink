@@ -2,6 +2,8 @@ package io.github.skitknasctrl.thinkclink
 
 import android.app.Activity
 import android.app.Dialog
+import android.content.Context
+import android.widget.FrameLayout
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Build
@@ -25,36 +27,42 @@ import android.widget.TextView
  * (an AlertDialog with a long scrolling form hid its buttons on some phones).
  */
 object Dialogs {
-    private fun dp(host: Activity, v: Int) = (v * host.resources.displayMetrics.density).toInt()
+    private fun dp(ctx: Context, v: Int) = (v * ctx.resources.displayMetrics.density).toInt()
 
-    private fun label(host: Activity, text: String, size: Float = 14f) = TextView(host).apply {
+    private fun label(ctx: Context, text: String, size: Float = 14f) = TextView(ctx).apply {
         this.text = text
+        setTextColor(Color.DKGRAY)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
-        setPadding(0, dp(host, 10), 0, dp(host, 2))
+        setPadding(0, dp(ctx, 10), 0, dp(ctx, 2))
     }
 
     /** Full-screen dialog: title, scrolling body, button row. Content stays below the status bar. */
-    private fun frame(host: Activity, title: String, body: View, buttons: List<Pair<String, (Dialog) -> Unit>>): Dialog {
-        val dialog = Dialog(host, android.R.style.Theme_Material_Light_NoActionBar)
-        val root = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.WHITE) }
+    /** A dialog with the light theme; all its views must be created with dialog.context (the game's theme is dark). */
+    private fun newDialog(host: Activity) = Dialog(host, android.R.style.Theme_Material_Light_NoActionBar)
+
+    private fun frame(dialog: Dialog, title: String, body: View, buttons: List<Pair<String, (Dialog) -> Unit>>): Dialog {
+        val ctx = dialog.context
+        val root = FrameLayout(ctx).apply { setBackgroundColor(Color.WHITE) }
         root.setOnApplyWindowInsetsListener { v, insets -> applyInsets(v, insets); insets }
-        root.addView(TextView(host).apply {
+        val column = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(TextView(ctx).apply {
             text = title
+            setTextColor(Color.BLACK)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setPadding(dp(host, 20), dp(host, 16), dp(host, 20), dp(host, 8))
+            setPadding(dp(ctx, 20), dp(ctx, 16), dp(ctx, 20), dp(ctx, 8))
         })
-        root.addView(ScrollView(host).apply {
-            addView(body.apply { setPadding(dp(host, 20), 0, dp(host, 20), dp(host, 12)) })
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        val bar = LinearLayout(host).apply {
+        column.addView(body.apply { setPadding(dp(ctx, 20), 0, dp(ctx, 20), dp(ctx, 80)) })
+        root.addView(ScrollView(ctx).apply { addView(column) },
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        val bar = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
-            setPadding(dp(host, 12), dp(host, 6), dp(host, 12), dp(host, 6))
+            setPadding(dp(ctx, 12), dp(ctx, 6), dp(ctx, 12), dp(ctx, 6))
             setBackgroundColor(Color.rgb(240, 240, 244))
         }
-        for ((text, action) in buttons) bar.addView(Button(host).apply { this.text = text; setOnClickListener { action(dialog) } })
-        root.addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        for ((text, action) in buttons) bar.addView(Button(ctx).apply { this.text = text; setOnClickListener { action(dialog) } })
+        root.addView(bar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
         dialog.setContentView(root)
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         return dialog
@@ -72,6 +80,8 @@ object Dialogs {
 
     /** Ordinary settings: language, grade, sound, statistics. onSaved gets the new language. */
     fun settings(host: Activity, prefs: SharedPreferences, rules: Rules, language: String, onSaved: (String, Map<String, Int>) -> Unit): Dialog {
+        val dialog = newDialog(host)
+        val host = dialog.context
         val body = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
         body.addView(label(host, T.s("set.language")))
         val langSpinner = Spinner(host).apply {
@@ -85,12 +95,12 @@ object Dialogs {
             setSelection(rules.grade - 1)
         }
         body.addView(gradeSpinner)
-        val sound = Switch(host).apply { text = T.s("set.sound"); isChecked = rules.sound; setPadding(0, dp(host, 18), 0, 0) }
+        val sound = Switch(host).apply { text = T.s("set.sound"); isChecked = rules.sound; setPadding(0, dp(host, 18), 0, 0); setTextColor(Color.DKGRAY) }
         body.addView(sound)
-        val stats = Switch(host).apply { text = T.s("set.stats"); isChecked = rules.sendStats; setPadding(0, dp(host, 18), 0, 0) }
+        val stats = Switch(host).apply { text = T.s("set.stats"); isChecked = rules.sendStats; setPadding(0, dp(host, 18), 0, 0); setTextColor(Color.DKGRAY) }
         body.addView(stats)
         body.addView(label(host, T.s("set.statsInfo"), 12f))
-        return frame(host, T.s("set.title"), body, listOf(
+        return frame(dialog, T.s("set.title"), body, listOf(
             T.s("set.cancel") to { d -> d.dismiss() },
             T.s("set.save") to { d ->
                 val lang = T.LANGUAGES[langSpinner.selectedItemPosition].first
@@ -110,18 +120,21 @@ object Dialogs {
 
     /** Developer settings: every non-user value in SettingsSpec. onSaved gets the complete value map. */
     fun testSettings(host: Activity, prefs: SharedPreferences, rules: Rules, onSaved: (Map<String, Int>) -> Unit): Dialog {
+        val dialog = newDialog(host)
+        val host = dialog.context
         val body = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
         body.addView(label(host, T.s("test.info"), 12f))
         val fields = SettingsSpec.test.map { spec ->
             body.addView(label(host, "${spec.label} (${spec.min}–${spec.max})"))
             EditText(host).apply {
                 setText(rules[spec.key].toString())
+                setTextColor(Color.BLACK)
                 inputType = InputType.TYPE_CLASS_NUMBER
                 setSingleLine()
                 body.addView(this)
             }
         }
-        return frame(host, T.s("test.title"), body, listOf(
+        return frame(dialog, T.s("test.title"), body, listOf(
             T.s("test.defaults") to { _ -> SettingsSpec.test.forEachIndexed { i, spec -> fields[i].setText(spec.default.toString()); fields[i].error = null } },
             T.s("set.cancel") to { d -> d.dismiss() },
             T.s("test.save") to { d ->
