@@ -14,15 +14,15 @@ class Button(val l: Float, val t: Float, val r: Float, val b: Float, val id: Str
  * Draws the whole game and records where the buttons are. All coordinates are view points:
  * the view is vw × vh points and the playfield (always 360 wide, engine x = 0..360) starts at px0.
  *
- * Portrait: the playfield fills the width; a compact HUD row sits at the top and the three
- * symbol buttons at the bottom. Landscape: the playfield is as wide as the screen is tall,
- * with the HUD in the left panel and the buttons in the right panel. Draggers (trains, cars …)
- * are not clipped at the playfield edge, so in landscape they run out over the panels.
+ * The game is always played in landscape: the playfield is in the middle, the HUD in the left
+ * panel and the three symbol buttons in the right panel, next to the playfield. Draggers
+ * (trains, cars …) are not clipped at the playfield edge, so they run out over the panels.
  */
 class Renderer(private val e: Engine) {
     companion object {
-        const val MIN_PANEL = 64f
         const val BTN = 54f
+        /** The view is scaled so that it is at least this many points wide: 360 playfield + two 120 panels. */
+        const val MIN_WIDTH = 600f
     }
 
     val buttons = ArrayList<Button>()
@@ -35,32 +35,21 @@ class Renderer(private val e: Engine) {
         private set
     var vh = 740f
         private set
-    var landscape = false
-        private set
     var px0 = 0f
         private set
     private val W = Engine.W
     private val cx: Float get() = px0 + W / 2
-    /** Top of the area overlays cover (below the HUD in portrait). */
-    private val overlayTop: Float get() = if (landscape) 0f else 62f
 
     /** Sets the geometry for the current view size. Called before every frame. */
     fun layout(viewW: Float, viewH: Float) {
         vw = viewW; vh = viewH
-        landscape = viewW > viewH && (viewW - W) / 2 >= MIN_PANEL
-        if (landscape) {
-            px0 = ((vw - W) / 2).roundToInt().toFloat()
-            e.spawnY = 28f; e.groundY = vh - 18f
-        } else {
-            px0 = 0f
-            e.spawnY = 74f; e.groundY = vh - 112f
-        }
+        px0 = ((vw - W) / 2).roundToInt().toFloat()
+        e.spawnY = 28f; e.groundY = vh - 18f
     }
 
     /** -1 move left, 1 move right, 0 nothing. Buttons are never steering areas. */
     fun zoneAt(x: Float, y: Float): Int {
         if (buttons.any { it.contains(x, y) }) return 0
-        if (!landscape && (y < vh * 0.25f || y > vh * 0.75f)) return 0
         return if (x < cx) -1 else 1
     }
 
@@ -73,7 +62,7 @@ class Renderer(private val e: Engine) {
         labels(g)
         g.restore()
         if (e.mode != Mode.MENU) hud(g)
-        if (e.mode == Mode.PLAYING) controls(g)
+        if (e.mode == Mode.PLAYING) controls(g) else if (e.mode != Mode.MENU) idleButtons(g)
         when (e.mode) {
             Mode.MENU -> menu(g)
             Mode.PAUSED -> pause(g)
@@ -81,6 +70,7 @@ class Renderer(private val e: Engine) {
             Mode.QUESTION -> question(g)
             Mode.GAME_OVER -> gameOver(g)
             Mode.PLAYING -> { banner(g); freeze(g) }
+            Mode.LOST -> lost(g)
         }
     }
 
@@ -226,9 +216,6 @@ class Renderer(private val e: Engine) {
 
     // ---- HUD ----
 
-    private fun hud(g: Gfx) {
-        if (landscape) hudPanel(g) else hudRow(g)
-    }
 
     private fun progress(g: Gfx, l: Float, r: Float, y: Float) {
         val frac = (e.levelTime / e.rules.levelSeconds).coerceIn(0f, 1f)
@@ -244,23 +231,8 @@ class Renderer(private val e: Engine) {
         for (i in 0 until e.maxLives()) heart(g, x0 + i * step, y, if (i < e.lives) Col.HEART else Col.HEART_OFF, s)
     }
 
-    /** Portrait: one row of symbols and a short progress bar under it. */
-    private fun hudRow(g: Gfx) {
-        flag(g, 14f, 26f, 1.1f, Col.GOLD)
-        g.text("${e.shownLevel()}", 32f, 32f, 18f, Col.GOLD, -1)
-        g.text("$", 84f, 32f, 18f, Col.GOLD, -1)
-        g.text("${e.balance}", 98f, 32f, 18f, Col.WHITE, -1)
-        hearts(g, 196f, 24f, 17f)
-        gem(g, 322f, 24f, 0.8f, e.clock)
-        g.text("${e.gems}", 334f, 31f, 16f, Col.WHITE, -1)
-        g.text(basketText(), 14f, 56f, 12f, Col.SOFT, -1)
-        progress(g, 110f, 230f, 47f)
-        g.text(timeText(), 238f, 56f, 11f, Col.SOFT, -1)
-        if (showMf()) g.text("MF ${e.effectiveMf().roundToInt()}", 346f, 56f, 11f, Col.SOFT, 1)
-    }
-
-    /** Landscape: the same information stacked in the left panel. */
-    private fun hudPanel(g: Gfx) {
+    /** The left panel: level, money, lives, gems, time and basket. */
+    private fun hud(g: Gfx) {
         val c = px0 / 2
         val l = max(8f, c - 56f)
         flag(g, l + 2f, 26f, 1.3f, Col.GOLD)
@@ -284,22 +256,22 @@ class Renderer(private val e: Engine) {
             e.level == 1 && e.levelTime < 8f -> T.s("play.tip")
             else -> e.note
         }
-        if (landscape) {
-            g.fitText(noteText, cx, 14f, 11f, Col.NOTE, W - 16f)
-            val x = px0 + W + 8f
-            var y = 24f
-            for (kind in 0..2) { iconButton(g, kind, x, y); y += BTN + 10f }
-        } else {
-            g.fitText(noteText, cx, vh - 90f, 12f, Col.NOTE, W - 16f)
-            val y = vh - 82f
-            var x = cx - BTN * 1.5f - 12f
-            for (kind in 0..2) { iconButton(g, kind, x, y); x += BTN + 12f }
-        }
+        g.fitText(noteText, cx, 14f, 11f, Col.NOTE, W - 16f)
+        val x = px0 + W + 8f
+        var y = 24f
+        for (kind in 0..2) { iconButton(g, kind, x, y, true); y += BTN + 10f }
+    }
+
+    /** The right panel outside play: the same buttons, greyed out, so the layout does not jump. */
+    private fun idleButtons(g: Gfx) {
+        val x = px0 + W + 8f
+        var y = 24f
+        for (kind in 0..2) { iconButton(g, kind, x, y, false); y += BTN + 10f }
     }
 
     /** kind 0 = net, 1 = slow motion, 2 = pause. Power-ups show their price as small gems. */
-    private fun iconButton(g: Gfx, kind: Int, x: Float, y: Float) {
-        val enabled = when (kind) { 0 -> e.gems >= 1 && e.netLeft <= 0f; 1 -> e.gems >= 1 && e.slowLeft <= 0f; else -> true }
+    private fun iconButton(g: Gfx, kind: Int, x: Float, y: Float, playing: Boolean) {
+        val enabled = playing && when (kind) { 0 -> e.gems >= 1 && e.netLeft <= 0f; 1 -> e.gems >= 1 && e.slowLeft <= 0f; else -> true }
         val id = when (kind) { 0 -> "net"; 1 -> "slow"; else -> "pause" }
         g.roundRect(x, y, x + BTN, y + BTN, 12f, if (enabled) Col.BUTTON else Col.BUTTON_OFF)
         val c = if (enabled) Col.WHITE else rgb(150, 156, 170)
@@ -333,7 +305,7 @@ class Renderer(private val e: Engine) {
         if (enabled) buttons.add(Button(l, t, r, b, id, arg))
     }
 
-    private fun overlay(g: Gfx) = g.rect(0f, overlayTop, vw, vh, Col.OVERLAY)
+    private fun overlay(g: Gfx) = g.rect(0f, 0f, vw, vh, Col.OVERLAY)
 
     private fun noteLines(g: Gfx, text: String, y: Float, width: Float, color: Int = Col.NOTE): Float {
         var yy = y
@@ -354,19 +326,55 @@ class Renderer(private val e: Engine) {
         g.fitText(T.s("play.wait"), cx, y + 30f, 14f, Col.WHITE, W - 16f)
     }
 
-    // ---- Overlays. A "stack" of buttons: one column in portrait, two columns in landscape. ----
+    // ---- Losing a life: half a second with the missed coin marked, then half a second with a sad face ----
+
+    private fun lost(g: Gfx) {
+        if (e.lostTime < Engine.LOST_DELAY) {
+            val a = 40 + (80 * (1f - e.lostTime / Engine.LOST_DELAY)).toInt()
+            g.rect(px0, 0f, px0 + W, vh, argb(a, 200, 30, 40))
+            for (d in e.active) if (d.state == 2 && d.kind == Kind.COIN) g.ring(px0 + d.x(d.land), min(e.y(d), e.rim), 16f, 3f, Col.ALERT)
+        } else {
+            overlay(g)
+            sadFace(g, vw / 2, vh / 2, min(90f, vh * 0.28f))
+        }
+    }
+
+    private fun sadFace(g: Gfx, x: Float, y: Float, r: Float) {
+        val brown = rgb(90, 55, 20)
+        g.circle(x, y, r, rgb(240, 180, 40))
+        g.circle(x, y - r * 0.03f, r * 0.95f, rgb(255, 208, 70))
+        g.ellipse(x - r * 0.34f, y - r * 0.12f, r * 0.09f, r * 0.15f, brown)
+        g.ellipse(x + r * 0.34f, y - r * 0.12f, r * 0.09f, r * 0.15f, brown)
+        g.line(x - r * 0.55f, y - r * 0.38f, x - r * 0.2f, y - r * 0.52f, r * 0.06f, brown)
+        g.line(x + r * 0.55f, y - r * 0.38f, x + r * 0.2f, y - r * 0.52f, r * 0.06f, brown)
+        var px = x - r * 0.38f
+        var py = y + r * 0.55f
+        for (i in 1..12) {
+            val t = -1f + 2f * i / 12f
+            val nx = x + t * r * 0.38f
+            val ny = y + r * 0.55f - (1f - t * t) * r * 0.18f
+            g.line(px, py, nx, ny, r * 0.07f, brown)
+            px = nx; py = ny
+        }
+        val tx = x - r * 0.36f
+        val ty = y + r * 0.22f
+        g.poly(floatArrayOf(tx, ty - r * 0.16f, tx + r * 0.08f, ty, tx - r * 0.08f, ty), rgb(90, 170, 240))
+        g.circle(tx, ty + r * 0.02f, r * 0.085f, rgb(90, 170, 240))
+    }
+
+    // ---- Overlays. A "stack" of buttons in two columns. ----
 
     private fun stack(g: Gfx, y0: Float, rows: List<Triple<String, Boolean, Pair<String, Int>>>, subs: List<String?>, maxBottom: Float): Float {
-        val cols = if (landscape) 2 else 1
-        val bw = if (landscape) min(250f, (vw - 60f) / 2) else 250f
+        val cols = 2
+        val bw = min(250f, (vw - 60f) / 2)
         val n = rows.size
         val lines = (n + cols - 1) / cols
-        var step = if (landscape) 50f else 56f
+        var step = 50f
         step = min(step, (maxBottom - y0) / max(1, lines))
         val bh = step - 8f
         rows.forEachIndexed { i, (label, enabled, idArg) ->
             val col = i % cols; val line = i / cols
-            val x = if (cols == 1) vw / 2 - bw / 2 else vw / 2 - bw - 10f + col * (bw + 20f)
+            val x = vw / 2 - bw - 10f + col * (bw + 20f)
             val y = y0 + line * step
             button(g, label, x, y, x + bw, y + bh, enabled, idArg.first, idArg.second, subs[i])
         }
@@ -375,7 +383,7 @@ class Renderer(private val e: Engine) {
 
     private fun menu(g: Gfx) {
         g.rect(0f, 0f, vw, e.ground - 70f, argb(200, 7, 13, 29))
-        val top = if (landscape) 34f else max(40f, vh * 0.14f)
+        val top = 34f
         g.text("THINKCLINK", vw / 2, top, 32f, Col.GOLD)
         g.fitText(T.s("menu.tagline"), vw / 2, top + 28f, 14f, Col.WHITE, vw - 20f)
         g.text(T.f("menu.record", e.high), vw / 2, top + 50f, 13f, Col.SOFT)
@@ -392,7 +400,7 @@ class Renderer(private val e: Engine) {
 
     private fun pause(g: Gfx) {
         overlay(g)
-        val top = if (landscape) 40f else (vh + overlayTop) / 2 - 110f
+        val top = 40f
         g.text(T.s("pause.title"), vw / 2, top, 26f, Col.WHITE)
         stack(g, top + 30f, listOf(
             Triple(T.s("pause.resume"), true, "resume" to 0),
@@ -404,7 +412,7 @@ class Renderer(private val e: Engine) {
 
     private fun shop(g: Gfx) {
         overlay(g)
-        val top = if (landscape) 4f else overlayTop + 10f
+        val top = 4f
         val mid = e.midLevelShop
         g.text(if (mid) T.s("shop.lostLife") else T.f("shop.levelDone", e.finishedLevel), vw / 2, top + 24f, 21f, if (mid) Col.ALERT else Col.GOLD)
         g.text("$ ${e.balance}  ·  ♥ ${e.lives}/${e.maxLives()}  ·  ◆ ${e.gems}  ·  " + T.f("shop.basket", e.speedLetter(), e.sizeLevel + 1, Engine.SIZE_STEPS + 1),
@@ -457,13 +465,13 @@ class Renderer(private val e: Engine) {
             Purpose.GATE -> T.f("q.gateTitle", e.level) to
                 if (e.rules.gateQuestions > 1) T.f("q.gateSubN", e.gateCorrect + 1, e.rules.gateQuestions) else T.s("q.gateSub")
         }
-        // The text column. In landscape an image gets its own column on the left.
+        // An image gets its own column to the left of the text.
         val size = q.imageUrl?.let { g.imageSize(it) }?.takeIf { it[0] > 0f && it[1] > 0f }
         var left = 20f
-        var right = vw - 20f
-        var imgW = 0f; var imgH = 0f
-        if (landscape && size != null) {
-            imgH = min(vh - 40f, 220f); imgW = imgH * size[0] / size[1]
+        val right = vw - 20f
+        if (size != null) {
+            var imgH = min(vh - 40f, 240f)
+            var imgW = imgH * size[0] / size[1]
             if (imgW > vw * 0.38f) { imgW = vw * 0.38f; imgH = imgW * size[1] / size[0] }
             left = 30f + imgW
             g.roundRect(17f, (vh - imgH) / 2 - 3f, 23f + imgW, (vh + imgH) / 2 + 3f, 6f, rgb(40, 50, 70))
@@ -472,62 +480,39 @@ class Renderer(private val e: Engine) {
         val colW = right - left
         val mx = (left + right) / 2
         val isBank = q.bankId != null
-        fun linesFor(sz: Float) = if (isBank) g.wrap(q.text, sz, colW - 10f).take(7) else listOf(q.text)
-        var textSize = if (isBank) 21f else 34f
-        if (landscape) textSize = if (isBank) 17f else 28f
+        fun linesFor(sz: Float) = if (isBank) g.wrap(q.text, sz, colW - 10f).take(5) else listOf(q.text)
+        var textSize = if (isBank) 17f else 28f
         var lines = linesFor(textSize)
-        if (isBank && lines.size > 4) { textSize -= 3f; lines = linesFor(textSize) }
-        val cols = if (landscape) 3 else 2
-        val grid = q.options.size == 6 && q.options.all { g.textWidth(it, 20f) <= colW / cols - 24f } ||
-            (landscape && q.options.all { g.textWidth(it, 16f) <= colW / 2 - 24f })
-        val optCols = if (!grid) 1 else if (q.options.size == 6 && landscape && q.options.all { g.textWidth(it, 20f) <= colW / 3 - 24f }) 3 else 2
+        if (isBank && lines.size > 3) { textSize = 14f; lines = linesFor(textSize) }
+        // Answers in three columns when they are short, otherwise two (long answers shrink to fit).
+        val optCols = if (q.options.size % 3 == 0 && q.options.all { g.textWidth(it, 19f) <= colW / 3 - 24f }) 3 else 2
         val rows = (q.options.size + optCols - 1) / optCols
-        var step = if (optCols > 1 && !landscape) 60f else if (landscape) 42f else 50f
-        fun totalOf() = 72f + lines.size * textSize * 1.25f + 44f + rows * step
-        val top0 = if (landscape) 2f else overlayTop + 6f
-        // Portrait image: between the subject line and the text, as big as the space allows
-        if (!landscape && size != null) {
-            val maxH = min(180f, (vh - overlayTop) * 0.32f)
-            fun free() = vh - top0 - totalOf() - 16f
-            if (free() < 100f) step = if (optCols > 1) 52f else 42f
-            if (free() < 100f && isBank && textSize > 16f) { textSize = 16f; lines = linesFor(textSize) }
-            if (free() < 100f && optCols == 1) step = 38f
-            imgH = min(maxH, free()).coerceAtLeast(0f); imgW = imgH * size[0] / size[1]
-            if (imgW > 320f) { imgW = 320f; imgH = imgW * size[1] / size[0] }
-            if (imgH < 40f) { imgW = 0f; imgH = 0f }
-        }
         val lineH = textSize * 1.25f
-        val total = totalOf() + if (!landscape && imgH > 0f) imgH + 10f else 0f
-        var y = max(top0 + 6f, top0 + (vh - top0 - total) / 2)
-        g.fitText(title, mx, y + 20f, if (landscape) 18f else 21f, Col.WHITE, colW)
+        val total = 70f + lines.size * lineH + 42f + rows * 44f
+        var y = max(4f, (vh - total) / 2)
+        g.fitText(title, mx, y + 20f, 18f, Col.WHITE, colW)
         g.fitText(sub, mx, y + 42f, 13f, Col.SOFT, colW)
         g.text(q.subjectName, mx, y + 62f, 11f, Col.TEAL)
         y += 70f
-        if (!landscape && imgH > 0f) {
-            g.roundRect(mx - imgW / 2 - 3f, y + 2f, mx + imgW / 2 + 3f, y + imgH + 8f, 6f, rgb(40, 50, 70))
-            g.image(q.imageUrl!!, mx - imgW / 2, y + 5f, mx + imgW / 2, y + imgH + 5f)
-            y += imgH + 10f
-        }
         for (line in lines) { y += lineH; g.fitText(line, mx, y - lineH * 0.22f, textSize, Col.GOLD, colW) }
         y += 18f
         g.text(T.f("q.timeLeft", e.timeLeft), mx, y, 13f, Col.WHITE)
         g.roundRect(left + 10f, y + 8f, right - 10f, y + 13f, 2.5f, rgb(60, 66, 80))
         g.roundRect(left + 10f, y + 8f, left + 10f + (colW - 20f) * (e.timeLeft / e.timeTotal), y + 13f, 2.5f, Col.TEAL)
         y += 24f
-        step = min(step, (vh - 6f - y) / rows)
+        val step = min(44f, (vh - 6f - y) / rows)
         val gap = 10f
         val ow = (colW - gap * (optCols - 1)) / optCols
         q.options.forEachIndexed { i, option ->
-            val c = i % optCols; val r = i / optCols
-            val x = left + c * (ow + gap)
-            val yy = y + r * step
-            button(g, option, x, yy, x + ow, yy + step - 8f, true, "answer", i, size = if (optCols > 1) 19f else 16f)
+            val x = left + (i % optCols) * (ow + gap)
+            val yy = y + (i / optCols) * step
+            button(g, option, x, yy, x + ow, yy + step - 8f, true, "answer", i, size = 18f)
         }
     }
 
     private fun gameOver(g: Gfx) {
         overlay(g)
-        val top = if (landscape) 40f else (vh + overlayTop) / 2 - 120f
+        val top = 40f
         g.text(T.s("over.title"), vw / 2, top, 28f, Col.ALERT)
         g.text(T.f("over.reached", e.finishedLevel), vw / 2, top + 32f, 16f, Col.WHITE)
         g.text(T.f("over.caught", e.caught, e.high), vw / 2, top + 58f, 15f, Col.SOFT)

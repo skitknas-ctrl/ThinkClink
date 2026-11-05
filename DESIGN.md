@@ -12,8 +12,8 @@ Varje fartköp hör ihop med en nivå. Den som köper fart inför varje nivå st
 
 ## 2. Styrning
 
-- Två osynliga styrfält: vänstra och högra halvan av skärmen (i stående läge bara de mittersta 50 % av höjden). Håll fingret i ett fält så rör sig korgen åt det hållet. Knapparna är aldrig styrfält.
-- **Liggande läge:** spelet kan spelas både stående och liggande. Spelplanen är alltid 360 spelpunkter bred; i liggande läge är den lika bred som skärmen är hög, och resten av skärmen blir två sidopaneler: mätarna till vänster och knapparna till höger, intill spelplanen. Dragarna klipps inte vid spelplanens kant utan kör ut över panelerna.
+- Två osynliga styrfält: vänstra och högra halvan av skärmen. Håll fingret i ett fält så rör sig korgen åt det hållet. Knapparna är aldrig styrfält.
+- **Bara liggande läge:** spelet visas alltid liggande, även om man håller telefonen stående (fallande mynt döljs mindre av tummarna). Spelplanen är 360 spelpunkter bred och lika bred som skärmen är hög; resten av skärmen blir två sidopaneler: mätarna till vänster och knapparna till höger, intill spelplanen. Dragarna klipps inte vid spelplanens kant utan kör ut över panelerna.
 - **Mätarna** använder symboler i stället för ord: flagga = nivå, $ = mynt, hjärtan = liv, ädelsten = stenar, en kort tidsstapel med återstående tid, och korgens fart och storlek som "G 1/5" (fartsteg G, storlek 1 av 5). Fångat visas inte längre. Fälten påverkar inte fallande föremål.
 - Ingen tröghet: korgen går med full fart direkt och stannar direkt.
 - Korgen är 25 % mindre än i första versionen: 66 → 50 spelpunkter.
@@ -71,7 +71,7 @@ Med standardvärdena får man (om man fångar alla) ungefär 7 stenar till nivå
 - Spelet börjar med 3 liv *(inst.)*. Ett missat mynt kostar ett liv. Missad sedel eller sten kostar inget.
 - Man kan köpa hur många liv som helst under spelet, men aldrig ha mer än 3 liv *(inst.)* i reserv utöver det man spelar med, alltså högst 4 liv.
 - När liven tar slut är spelet över, och rekordet sparas.
-- När man förlorar ett liv mitt i en nivå pausas spelet och hela butiken öppnas (avsnitt 6). När man går tillbaka till nivån står mynten stilla i 3 sekunder (med nedräkning) medan korgen går att flytta.
+- När man förlorar ett liv mitt i en nivå pausas spelet och hela butiken öppnas (avsnitt 6). Först står allt still i en halv sekund med det missade myntet markerat, sedan visas en ledsen gubbe i en halv sekund, och därefter butiken (eller Spelet slut). När man går tillbaka till nivån står mynten stilla i 3 sekunder (med nedräkning) medan korgen går att flytta.
 
 ## 6. Butiken
 

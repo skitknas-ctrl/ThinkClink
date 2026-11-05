@@ -11,7 +11,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
 
-enum class Mode { MENU, PLAYING, PAUSED, SHOP, QUESTION, GAME_OVER }
+enum class Mode { MENU, PLAYING, LOST, PAUSED, SHOP, QUESTION, GAME_OVER }
 enum class Kind { COIN, BILL, GEM }
 enum class Sfx { COIN, BILL, GEM, LIFE, BUY, WRONG, LEVEL }
 enum class Purpose { SPEED, MONEY, LIFE, GATE }
@@ -88,6 +88,9 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         const val SPECIAL_SLOWDOWN = 3f
         const val POWER_SECONDS = 10f
         const val BASKET_HEIGHT = 38f
+        /** After a missed coin: this long with the playfield frozen, then a sad face for SAD_SECONDS, then the shop. */
+        const val LOST_DELAY = 0.5f
+        const val SAD_SECONDS = 0.5f
         /** Coins stand still this long after returning to the level from the shop. */
         const val FREEZE_SECONDS = 3f
         const val QUESTIONS_PER_VISIT = 3
@@ -152,6 +155,9 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
     var slowLeft = 0f
     /** Seconds left of the pause after returning from the shop: coins stand still, the basket can move. */
     var freezeLeft = 0f
+    /** Time since a life was lost (Mode.LOST). */
+    var lostTime = 0f
+    private var lostCount = 0
 
     // Shop
     var midLevelShop = false
@@ -325,6 +331,7 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         labels.removeAll { it.age > 0.9f }
         when (mode) {
             Mode.PLAYING -> play(dt)
+            Mode.LOST -> { lostTime += dt; if (lostTime >= LOST_DELAY + SAD_SECONDS) afterLost() }
             Mode.QUESTION -> { timeLeft = max(0f, timeLeft - dt); if (timeLeft <= 0f) answer(null) }
             else -> {}
         }
@@ -365,13 +372,20 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         if (lost > 0) {
             lives = max(0, lives - lost)
             listener.sound(Sfx.LIFE)
-            if (lives == 0) { gameOver(); return }
-            active.removeAll { it.state == 2 } // the missed coin should not hang in the air during the pause
-            openShop(true)
-            note = if (lost == 1) T.s("n.lost1") else T.f("n.lostN", lost)
+            lostCount = lost; lostTime = 0f
+            setInput(false, false)
+            mode = Mode.LOST
             return
         }
         if (levelTime >= rules.levelSeconds && next >= schedule.size && active.none { it.state == 0 }) levelDone()
+    }
+
+    /** After the sad face: the shop, or game over when there are no lives left. */
+    private fun afterLost() {
+        active.removeAll { it.state == 2 } // the missed coin should not hang in the air during the pause
+        if (lives == 0) { gameOver(); return }
+        openShop(true)
+        note = if (lostCount == 1) T.s("n.lost1") else T.f("n.lostN", lostCount)
     }
 
     private fun recordMiss(d: Drop, missBy: Float, bw: Float) {

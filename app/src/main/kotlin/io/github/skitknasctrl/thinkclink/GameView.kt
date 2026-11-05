@@ -115,8 +115,8 @@ class GameView(private val host: Activity) : View(host), GameListener {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width == 0 || height == 0) return
-        val portrait = height >= width
-        scale = if (portrait) width / Engine.W else height / Engine.W
+        // Always the landscape layout: the playfield fills the height, with room for both side panels.
+        scale = min(height / Engine.W, width / Renderer.MIN_WIDTH)
         renderer.layout(width / scale, height / scale)
         val now = System.nanoTime()
         val running = active && !settingsOpen

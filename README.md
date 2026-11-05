@@ -4,7 +4,7 @@ Fånga mynt med en korg, köp större korgar genom att lösa huvudräkning.
 
 ## Spelregler
 
-- Korgen flyttas med två osynliga fält: håll fingret på vänstra eller högra halvan av skärmen. Spelet kan spelas stående eller liggande. Fälten påverkar inte fallande föremål.
+- Korgen flyttas med två osynliga fält: håll fingret på vänstra eller högra halvan av skärmen. Spelet visas alltid i liggande läge. Fälten påverkar inte fallande föremål.
 - Varje nivå är 120 sekunder och blir svårare medan den pågår. Hur svårt det är styrs av MF, möjlighetsfaktorn: hur mycket tid korgen har på sig att hinna från ett mynt till nästa.
 - Ett missat mynt kostar ett liv. Man börjar med 3 liv och kan ha högst 4 (ett i spel och tre i reserv).
 - Mellan nivåerna och när man tappar ett liv öppnas butiken: **snabbare korg** (kräver rätt svar på en mattefråga), **större korg** (för ädelstenar), **liv**, och mattefrågor som ger pengar eller liv.
