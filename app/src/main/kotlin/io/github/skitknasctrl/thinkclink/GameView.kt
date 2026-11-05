@@ -1,18 +1,11 @@
 package io.github.skitknasctrl.thinkclink
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.graphics.Canvas
-import android.text.InputType
 import android.view.MotionEvent
 import android.view.View
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import kotlin.math.min
 
 /** Android side of the game: frame loop, touch, saving, sound, network and the settings dialog. */
@@ -28,11 +21,14 @@ class GameView(private val host: Activity) : View(host), GameListener {
     private var scale = 1f
     private var last = 0L
     private var settingsOpen = false
+    private var language = prefs.getString("language", "en") ?: "en"
     var active = true
 
     init {
+        T.lang = language; language = T.lang
         engine = Engine(loadRules(), prefs.getInt("high", 0), this)
         engine.appVersion = appVersion
+        engine.language = language
         renderer = Renderer(engine)
         renderer.savedLevel = if (prefs.contains("save_level")) prefs.getInt("save_level", 0) else 0
         sound.enabled = engine.rules.sound
@@ -60,16 +56,16 @@ class GameView(private val host: Activity) : View(host), GameListener {
     /** Status lines on the start screen, so it is easy to see that the server connection works. */
     private fun updateInfo() {
         val grade = engine.rules.grade
-        val count = engine.bank.countForGrade(grade)
+        val count = engine.bank.countForGrade(grade, language)
         val synced = if (backend.lastSyncMillis > 0)
-            "hämtade " + SimpleDateFormat("d/M HH:mm", Locale.forLanguageTag("sv-SE")).format(Date(backend.lastSyncMillis))
-        else "inte hämtade än"
-        val stats = if (engine.rules.sendStats) "Anonym statistik: på · ${backend.pending} nivåer väntar på uppladdning" else "Anonym statistik: av"
+            T.f("info.fetched", SimpleDateFormat("d/M HH:mm", T.locale).format(Date(backend.lastSyncMillis)))
+        else T.s("info.notFetched")
+        val stats = if (engine.rules.sendStats) T.f("info.statsOn", backend.pending) else T.s("info.statsOff")
         renderer.info = listOfNotNull(
-            "Kunskapsfrågor för åk $grade: $count ($synced)",
+            T.f("info.questions", grade, count, synced),
             stats,
-            backend.lastError?.let { "Senaste nätfel: $it" },
-            "Version $appVersion",
+            backend.lastError?.let { T.f("info.netError", it) },
+            T.f("info.version", appVersion),
         )
     }
 
@@ -119,8 +115,9 @@ class GameView(private val host: Activity) : View(host), GameListener {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width == 0 || height == 0) return
-        scale = width / Engine.W
-        engine.worldHeight = height / scale
+        val portrait = height >= width
+        scale = if (portrait) width / Engine.W else height / Engine.W
+        renderer.layout(width / scale, height / scale)
         val now = System.nanoTime()
         val running = active && !settingsOpen
         val dt = if (last == 0L || !running) 0f else min(0.05f, (now - last) / 1_000_000_000f)
@@ -165,62 +162,32 @@ class GameView(private val host: Activity) : View(host), GameListener {
 
     private fun press(b: Button) {
         when (b.id) {
-            "settings" -> openSettings()
+            "settings" -> openSettings(false)
+            "test" -> openSettings(true)
             "continue" -> loadSave()?.let { engine.continueGame(it, prefs.getString("save_session", null)) } ?: engine.newGame()
             else -> engine.press(b.id, b.arg)
         }
     }
 
-    // ---- Developer settings ----
+    // ---- Settings screens ----
 
-    private fun openSettings() {
+    private fun openSettings(test: Boolean) {
         if (settingsOpen) return
         settingsOpen = true
-        val content = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL; setPadding(40, 16, 40, 16) }
-        val fields = SettingsSpec.all.map { spec ->
-            content.addView(TextView(host).apply { text = "${spec.label} (${spec.min}–${spec.max})" })
-            EditText(host).apply {
-                setText(engine.rules[spec.key].toString())
-                inputType = InputType.TYPE_CLASS_NUMBER
-                setSingleLine()
-                content.addView(this)
-            }
+        val dialog = if (test) Dialogs.testSettings(host, prefs, engine.rules) { values ->
+            engine.rules = Rules(values)
+            sound.enabled = engine.rules.sound
+            if (!engine.rules.sendStats) backend.clearOutbox()
+            engine.newGame()
+            updateInfo()
+        } else Dialogs.settings(host, prefs, engine.rules, language) { lang, values ->
+            language = lang; T.lang = lang; engine.language = lang
+            engine.rules = Rules(engine.rules.asMap() + values)
+            sound.enabled = engine.rules.sound
+            if (!engine.rules.sendStats) backend.clearOutbox()
+            updateInfo()
         }
-        val dialog = AlertDialog.Builder(host)
-            .setTitle("Testinställningar")
-            .setMessage("Spara startar ett nytt spel. Inställningarna sparas mellan appstarter.")
-            .setView(ScrollView(host).apply { addView(content) })
-            .setNegativeButton("Avbryt", null)
-            .setNeutralButton("Standardvärden", null)
-            .setPositiveButton("Spara & nytt spel", null)
-            .create()
         dialog.setOnDismissListener { settingsOpen = false; last = 0L; invalidate() }
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                SettingsSpec.all.forEachIndexed { i, spec -> fields[i].setText(spec.default.toString()); fields[i].error = null }
-            }
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                var valid = true
-                val values = HashMap<String, Int>()
-                SettingsSpec.all.forEachIndexed { i, spec ->
-                    val v = fields[i].text.toString().toIntOrNull()
-                    if (v == null || v !in spec.min..spec.max) {
-                        fields[i].error = "Ange ${spec.min}–${spec.max}"; valid = false
-                    } else values[spec.key] = v
-                }
-                if (valid) {
-                    val edit = prefs.edit()
-                    values.forEach { (k, v) -> edit.putInt("set_$k", v) }
-                    edit.apply()
-                    engine.rules = Rules(values)
-                    sound.enabled = engine.rules.sound
-                    if (!engine.rules.sendStats) backend.clearOutbox()
-                    engine.newGame()
-                    updateInfo()
-                    dialog.dismiss()
-                }
-            }
-        }
         dialog.show()
     }
 }

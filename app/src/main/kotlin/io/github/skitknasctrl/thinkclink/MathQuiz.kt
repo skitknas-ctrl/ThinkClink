@@ -60,6 +60,6 @@ object MathQuiz {
             if (candidate >= 0) choices.add(candidate)
         }
         val options = choices.shuffled(rnd)
-        return Question("$text = ?", options.map { it.toString() }, options.indexOf(answer), "matte", "Matematik", d)
+        return Question("$text = ?", options.map { it.toString() }, options.indexOf(answer), "matte", T.s("math"), d)
     }
 }

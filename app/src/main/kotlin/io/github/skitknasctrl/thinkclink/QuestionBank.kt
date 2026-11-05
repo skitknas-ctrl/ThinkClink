@@ -21,6 +21,7 @@ class BankQuestion(
     val explanation: String?,
     val imageUrl: String? = null,
     val until: String? = null,
+    val language: String = "sv",
 ) {
     fun expired(today: String) = until != null && until < today
 }
@@ -30,16 +31,16 @@ fun today(): String = LocalDate.now().toString()
 /** The questions the app has downloaded, plus subject names. Immutable; replaced as a whole after a sync. */
 class QuestionBank(val questions: List<BankQuestion> = emptyList(), val subjectNames: Map<String, String> = emptyMap()) {
 
-    fun countForGrade(grade: Int, today: String = today()) =
-        questions.count { grade in it.gradeMin..it.gradeMax && !it.expired(today) }
+    fun countForGrade(grade: Int, language: String, today: String = today()) =
+        questions.count { grade in it.gradeMin..it.gradeMax && !it.expired(today) && it.language == language }
 
     /**
      * Picks a question for the grade with a difficulty as close as possible to the wanted one,
      * skipping questions already asked in this game and questions past their last day. Null if none is left.
      */
-    fun pick(grade: Int, difficulty: Int, asked: Set<Int>, rnd: Random, today: String = today()): Question? {
+    fun pick(grade: Int, difficulty: Int, asked: Set<Int>, rnd: Random, today: String = today(), language: String = "sv"): Question? {
         val candidates = questions.filter {
-            grade in it.gradeMin..it.gradeMax && it.id !in asked && it.wrong.isNotEmpty() && !it.expired(today)
+            grade in it.gradeMin..it.gradeMax && it.id !in asked && it.wrong.isNotEmpty() && !it.expired(today) && it.language == language
         }
         if (candidates.isEmpty()) return null
         val best = candidates.minOf { abs(it.difficulty - difficulty) }

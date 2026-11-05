@@ -1,7 +1,7 @@
 package io.github.skitknasctrl.thinkclink
 
 /** One adjustable value in the developer settings (Testinställningar). */
-class Setting(val key: String, val label: String, val default: Int, val min: Int, val max: Int)
+class Setting(val key: String, val label: String, val default: Int, val min: Int, val max: Int, val user: Boolean = false)
 
 object SettingsSpec {
     val all = listOf(
@@ -20,7 +20,7 @@ object SettingsSpec {
         Setting("gemEvery", "Stenchans var … fallna mynt", 100, 10, 2000),
         Setting("gemChance", "Stenchans, %", 50, 0, 100),
         Setting("startLives", "Liv vid start", 3, 1, 9),
-        Setting("maxExtraLives", "Max extra liv i ägo", 3, 0, 9),
+        Setting("maxExtraLives", "Max liv i reserv, utöver det man spelar med", 3, 0, 9),
         Setting("speedPricePct", "Fartpris, % av nivåns mynt", 60, 0, 500),
         Setting("answerSeconds", "Svarstid, sekunder", 10, 2, 60),
         Setting("refundPct", "Max återbetalning vid snabbt svar, %", 30, 0, 100),
@@ -29,12 +29,13 @@ object SettingsSpec {
         Setting("mathHardPct", "Mattebelöning svår, % av nivåns mynt", 15, 0, 200),
         Setting("mathStart", "Mattesvårighet, startnivå (1–5)", 1, 1, 5),
         Setting("gateQuestions", "Rätta svar som krävs för att starta nästa nivå", 1, 0, 5),
-        Setting("grade", "Årskurs för kunskapsfrågor (1–9, gymnasiet 10–12)", 4, 1, 12),
+        Setting("grade", "Årskurs för kunskapsfrågor (1–9, gymnasiet 10–12)", 4, 1, 12, user = true),
         Setting("knowledgePct", "Andel kunskapsfrågor i stället för matte, %", 50, 0, 100),
-        Setting("sendStats", "Skicka anonym statistik (1 = ja, 0 = nej)", 1, 0, 1),
-        Setting("sound", "Ljud (1 = på, 0 = av)", 1, 0, 1),
+        Setting("sendStats", "Skicka anonym statistik (1 = ja, 0 = nej)", 1, 0, 1, user = true),
+        Setting("sound", "Ljud (1 = på, 0 = av)", 1, 0, 1, user = true),
         Setting("showMf", "Visa MF under spel (1 = ja, 0 = nej)", 1, 0, 1),
     )
+    val test = all.filter { !it.user }
 }
 
 /** Immutable set of setting values, clamped to their allowed ranges. */

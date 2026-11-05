@@ -12,7 +12,9 @@ Varje fartköp hör ihop med en nivå. Den som köper fart inför varje nivå st
 
 ## 2. Styrning
 
-- Två osynliga styrfält: vänstra och högra halvan av skärmen, i de mittersta 50 % av höjden. Håll fingret i ett fält så rör sig korgen åt det hållet. Fälten påverkar inte fallande föremål.
+- Två osynliga styrfält: vänstra och högra halvan av skärmen (i stående läge bara de mittersta 50 % av höjden). Håll fingret i ett fält så rör sig korgen åt det hållet. Knapparna är aldrig styrfält.
+- **Liggande läge:** spelet kan spelas både stående och liggande. Spelplanen är alltid 360 spelpunkter bred; i liggande läge är den lika bred som skärmen är hög, och resten av skärmen blir två sidopaneler: mätarna till vänster och knapparna till höger, intill spelplanen. Dragarna klipps inte vid spelplanens kant utan kör ut över panelerna.
+- **Mätarna** använder symboler i stället för ord: flagga = nivå, $ = mynt, hjärtan = liv, ädelsten = stenar, en kort tidsstapel med återstående tid, och korgens fart och storlek som "G 1/5" (fartsteg G, storlek 1 av 5). Fångat visas inte längre. Fälten påverkar inte fallande föremål.
 - Ingen tröghet: korgen går med full fart direkt och stannar direkt.
 - Korgen är 25 % mindre än i första versionen: 66 → 50 spelpunkter.
 
@@ -67,7 +69,7 @@ Med standardvärdena får man (om man fångar alla) ungefär 7 stenar till nivå
 ## 5. Liv
 
 - Spelet börjar med 3 liv *(inst.)*. Ett missat mynt kostar ett liv. Missad sedel eller sten kostar inget.
-- Man kan köpa hur många liv som helst under spelet, men aldrig ha mer än 3 extra liv *(inst.)* samtidigt, alltså högst 6 liv.
+- Man kan köpa hur många liv som helst under spelet, men aldrig ha mer än 3 liv *(inst.)* i reserv utöver det man spelar med, alltså högst 4 liv.
 - När liven tar slut är spelet över, och rekordet sparas.
 - När man förlorar ett liv mitt i en nivå pausas spelet och hela butiken öppnas (avsnitt 6). När man går tillbaka till nivån står mynten stilla i 3 sekunder (med nedräkning) medan korgen går att flytta.
 
@@ -89,14 +91,14 @@ Frågorna i butiken kan vara mattefrågor eller kunskapsfrågor från databasen,
 | Vad | Kostnad | Var |
 |---|---|---|
 | Större korg, steg 1–4 | 3, 6, 9, 12 stenar | Butiken |
-| Markkorg i 10 s: en extra korg ställs där korgen står | 1 sten | Knapp under nivån |
+| Skyddsnät i 10 s: ett nät över hela spelplanen som fångar allt som faller | 1 sten | Knapp under nivån |
 | Slowmotion i 10 s: regnet och nivåklockan går halv fart, korgen full fart | 1 sten | Knapp under nivån |
 
 Korgen blir 20 % större för varje steg, räknat på förra storleken: 50 → 60 → 72 → 86 → 104 spelpunkter. Totalt fem storlekar.
 
 Slowmotion fördubblar MF under tiden den gäller.
 
-Under nivån visar knappraden bara stenknapparna och Paus.
+Under nivån finns tre knappar utan ord: nät, snigel (slowmotion) och paus. Stenknapparna visar priset som en liten ädelsten och, när de är aktiva, sekunderna som är kvar.
 
 ## 8. Mattesvårighet
 
@@ -133,7 +135,13 @@ Spelet sparas när en nivå startar och när butiken öppnas mellan nivåerna. S
 
 Klirr för mynt, prassel för sedel, ett eget ljud för ädelsten, ett för förlorat liv, ett för köp, ett för fel svar och ett för klarad nivå. Ljuden skapas i koden, utan ljudfiler, och kan stängas av under Testinställningar.
 
-## 12. Testinställningar
+## 12. Inställningar och testinställningar
+
+**Inställningar** (för spelaren): språk, årskurs, ljud av/på och anonym statistik av/på. Engelska är standardspråk; svenska finns. Fler språk läggs till i `Texts.kt`. Kunskapsfrågor hämtas bara på det valda språket (fältet `language` i databasen); finns inga blir det matte.
+
+**Testinställningar** (under utvecklingen): allt nedan utom årskurs, ljud och statistik. Båda skärmarna har knappraden fast längst ned så att Spara alltid syns.
+
+### Testinställningar
 
 | Inställning | Standard |
 |---|---|
@@ -152,7 +160,7 @@ Klirr för mynt, prassel för sedel, ett eget ljud för ädelsten, ett för för
 | Stenchans var … fallna mynt | 100 |
 | Stenchans | 50 % |
 | Liv vid start | 3 |
-| Max extra liv i ägo | 3 |
+| Max liv i reserv | 3 |
 | Fartpris, % av nivåns mynt | 60 |
 | Svarstid | 10 s |
 | Max återbetalning vid snabbt svar | 30 % |

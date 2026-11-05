@@ -135,6 +135,7 @@ class QuestionSync(
                 gradeMin = q.optInt("grade_min", 1), gradeMax = q.optInt("grade_max", 12),
                 difficulty = q.optInt("difficulty", 3), text = q.optString("question_text"), answer = q.optString("answer"),
                 wrong = wrong, explanation = str(q, "explanation"), imageUrl = image, until = str(q, "aktuell_till")?.take(10),
+                language = q.optString("language", "sv").ifEmpty { "sv" },
             )
             if (question.text.isNotEmpty() && question.answer.isNotEmpty() && !question.expired(today)) list.add(question)
         }
