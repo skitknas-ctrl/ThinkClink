@@ -19,6 +19,11 @@ object T {
 
     private val en = mapOf(
         "math" to "Math",
+        "m.of" to "%s of %d",
+        "m.pct" to "%d %% of %d",
+        "m.inc" to "%d increased by %d %%",
+        "m.dec" to "%d decreased by %d %%",
+        "m.forx" to "when x = %d",
         "menu.tagline" to "Catch coins. Think your way to speed.",
         "menu.record" to "Record: %d caught",
         "menu.continue" to "Continue",
@@ -113,6 +118,11 @@ object T {
 
     private val sv = mapOf(
         "math" to "Matematik",
+        "m.of" to "%s av %d",
+        "m.pct" to "%d %% av %d",
+        "m.inc" to "%d ökat med %d %%",
+        "m.dec" to "%d minskat med %d %%",
+        "m.forx" to "när x = %d",
         "menu.tagline" to "Fånga mynt. Tänk dig till fart.",
         "menu.record" to "Rekord: %d fångade",
         "menu.continue" to "Fortsätt",

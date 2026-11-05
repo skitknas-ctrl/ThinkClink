@@ -102,7 +102,24 @@ Under nivån finns tre knappar utan ord: nät, snigel (slowmotion) och paus. Ste
 
 ## 8. Mattesvårighet
 
-Svårigheten går från 1 till 5. Startnivån är 1 *(inst.)* och höjs ett steg var tredje spelnivå. **[förslag, godkänt]** Vid matte för pengar ger "lätt" ett steg under den aktuella svårigheten, "medel" den aktuella och "svår" ett steg över.
+Mattefrågorna följer **årskursen** i Inställningar (1–9, gymnasiet 10–12). Varje uppgiftstyp hör till en årskurs, utifrån vad elever förväntas räkna i huvudet då (amerikanska Common Core-standarder och tyska kopfrechnen-/bastester för klass 7–9):
+
+| Åk | Uppgifter |
+|---|---|
+| 1 | + och − inom 10 (inom 20 på högre svårighet) |
+| 2 | + och − inom 20 över tiotal, tiotal till tvåsiffriga tal |
+| 3 | tvåsiffrig + och −, multiplikations- och divisionstabeller till 10 |
+| 4 | + och − inom 1000, tabeller till 12, × och ÷ med 10 och 100 |
+| 5 | tvåsiffrigt × ensiffrigt, division, bråkdel av tal, decimaltal |
+| 6 | procent, negativa tal, kvadrater, räkneordning, decimal × heltal |
+| 7 | negativa tal × och ÷, potenser, enstegsekvationer, valfri procent |
+| 8 | tvåstegsekvationer, kvadratrötter, procentuell ökning/minskning, bråkaddition |
+| 9 | x på båda sidor, värdet av uttryck, potenslagar, grundpotensform |
+| 10 | andragradsekvationer, logaritmer, funktionsvärden |
+| 11 | exponentialekvationer, derivata |
+| 12 | summor av talföljder, enkla integraler |
+
+Svårigheten 1–5 inom årskursen (startnivå *(inst.)*, höjs var tredje spelnivå; lätt/medel/svår vid matte för pengar) styr talens storlek och hur långt bakåt uppgifterna får gå: 1–3 ger årets och förra årets typer, 4–5 bara årets. Flerstegsuppgifter får extra svarstid (upp till 5 s).
 
 ## 9. Dragarna (grafik)
 

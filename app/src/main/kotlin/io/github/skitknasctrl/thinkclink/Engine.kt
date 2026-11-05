@@ -495,11 +495,11 @@ class Engine(var rules: Rules, var high: Int, private val listener: GameListener
         purpose = p
         val d = difficulty.coerceIn(1, 5)
         val fromBank = rules.knowledgePct > 0 && rnd.nextInt(100) < rules.knowledgePct
-        val q = (if (fromBank) bank.pick(rules.grade, d, asked, rnd, language = language) else null) ?: MathQuiz.generate(d, rnd)
+        val q = (if (fromBank) bank.pick(rules.grade, d, asked, rnd, language = language) else null) ?: MathQuiz.generate(rules.grade, d, rnd)
         q.bankId?.let { asked.add(it) }
         question = q
         val reading = if (q.bankId != null) (q.text.length / READING_CHARS_PER_SECOND).toFloat() else 0f
-        timeTotal = rules.answerSeconds + reading; timeLeft = timeTotal
+        timeTotal = rules.answerSeconds + reading + q.extraSeconds; timeLeft = timeTotal
         mode = Mode.QUESTION
     }
 
